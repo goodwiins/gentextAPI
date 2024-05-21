@@ -23,32 +23,30 @@ if (typeof window !== 'undefined') {
   token = sessionStorage.getItem('token');
 }
 
-  const handleSubmit = async (event: { preventDefault: () => void; }) => {
-    event.preventDefault()
-  
-    try {
-      const response = await axios.post("http://127.0.0.1:5000/auth/login", {
-        email,
-        password
-      }).then((response) => {
-        const user_id = response.data.user_id; // Assuming the server returns user_id
-        console.log("User ID:", user_id); // Log the user id
-        console.log(response.data.access_token)
-        sessionStorage.setItem('token', response.data.access_token)
-        router.push('/');
-      }).catch((error) => {
-        if (error.response) {
-          console.log(error.response)
-          console.log(error.response.status)
-          console.log(error.response.headers)
-        }
-      })
+const handleSubmit = async (event: { preventDefault: () => void; }) => {
+  event.preventDefault();
 
-      
-    } catch (error) {
-      console.error(error)
-    }
+  try {
+    const response = await axios.post("http://127.0.0.1:5000/auth/login", {
+      email,
+      password
+    }, { withCredentials: true }).then((response) => {
+      const user_id = response.data.user_id; // Assuming the server returns user_id
+      console.log("User ID:", user_id); // Log the user id
+      console.log(response.data.access_token);
+      sessionStorage.setItem('token', response.data.access_token);
+      router.push('/');
+    }).catch((error) => {
+      if (error.response) {
+        console.log(error.response);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      }
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
   }
+};
 
   return (
     <div>

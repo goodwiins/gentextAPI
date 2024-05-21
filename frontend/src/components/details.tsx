@@ -16,11 +16,12 @@ export default function Details() {
         axios
           .get(`http://127.0.0.1:5000/api/user/${user_id}/data`, {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
+              Authorization: `Bearer ${sessionStorage.getItem('token')}`
             }
           })
           .then((response) => {
             setUserData(response.data); // Store the user data
+            console.log("User data:", response.data);
           })
           .catch((error) => {
             console.error("Error fetching user data:", error);
