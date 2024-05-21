@@ -129,7 +129,7 @@ def generate_sentences(partial_sentence, full_sentence):
     top_3_sentences = sort_by_similarity(full_sentence, generated_sentences)
     return top_3_sentences
 
-def store(sent_completion_dict):
+def store(sent_completion_dict, original_sentences):
     results = []
     for key_sentence in sent_completion_dict:
         false_sentences = []
@@ -137,12 +137,27 @@ def store(sent_completion_dict):
         for partial_sent in partial_sentences:
             false_sents = generate_sentences(partial_sent, key_sentence)
             false_sentences.extend(false_sents)
-        temp = {"sentence": partial_sentences[0], "false_sentences": false_sentences}
+        temp = {
+            "original_sentence": original_sentences[key_sentence],
+            "partial_sentence": partial_sentences[0],
+            "false_sentences": false_sentences
+        }
         results.append(temp)
     return json.dumps(results, indent=4)
 
 def process_text(text):
+    original_sentences = {}
     cand_sent = get_candidate_sents(text)
     filter_quotes_and_questions = preprocess(cand_sent)
     sent_completion_dict = get_sentence_completions(filter_quotes_and_questions)
-    return store(sent_completion_dict)
+    for sentence in filter_quotes_and_questions:
+        original_sentences[sentence] = sentence
+    return store(sent_completion_dict, original_sentences)
+
+# Example usage
+# if __name__ == "__main__":
+#     sample_text = """
+#     In a small town nestled between the rolling hills, there was a bustling market that came alive every Saturday. Farmers from neighboring villages brought fresh produce, while artisans showcased their handmade crafts. Among them was Emily, a young baker known for her delectable pastries. She set up her stall early, arranging an assortment of cakes, pies, and cookies, each more enticing than the last. The air was filled with the sweet aroma of freshly baked goods, drawing customers from all corners of the market. Children tugged at their parents' sleeves, eager to sample Emily's famous chocolate chip cookies. As the morning sun climbed higher, the market thrived with chatter and laughter, creating a sense of community that was cherished by all.
+#     """
+#     result = process_text(sample_text)
+#     print(result)

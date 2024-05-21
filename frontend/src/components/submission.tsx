@@ -9,13 +9,36 @@ export default function Submission(): JSX.Element {
   const [wordCount, setWordCount] = useState<number>(0);
   const [charCount, setCharCount] = useState<number>(0);
 
-  const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+  const handleTextChange = async (event: ChangeEvent<HTMLTextAreaElement>) => {
     const newText = event.target.value;
     const words = newText.trim().split(/\s+/);
     setWordCount(words[0] === "" ? 0 : words.length);
     setCharCount(newText.length);
     setText(newText);
+   
   };
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/process_text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      // If you expect a JSON response, you can parse it here
+      const data = await response.json();
+      console.log(data);
+    } catch (error) {
+      console.error('There has been a problem with your fetch operation: ', error);
+    }
+  };
+  
 
   const handleClearText = () => {
     setText("");
@@ -56,7 +79,7 @@ export default function Submission(): JSX.Element {
             <Badge variant="secondary">WAITING FOR YOUR INPUT</Badge>
           </div>
           <div className="flex space-x-4">
-            <Button variant="outline">Submit</Button>
+            <Button onClick={handleSubmit}>Submit</Button>
           </div>
         </div>
       </div>
