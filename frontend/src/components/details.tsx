@@ -30,6 +30,71 @@ export default function Details() {
       }
     });
   }, []);
+  const emailUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const updatedData = {
+      first_name: formData.get('name') as string,
+      email: formData.get('email') as string,
+    };
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/user/update', { // Adjust the API endpoint as necessary
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(updatedData),
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setUserData(updatedUser);
+      } else {
+        console.error('Failed to update user data');
+      }
+    } catch (error) {
+      console.error('An error occurred while updating user data:', error);
+    }
+  };
+
+
+  const passwordUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const newPassword = formData.get('new-password') as string;
+    const confirmPassword = formData.get('confirm-password') as string;
+  
+    if (newPassword !== confirmPassword) {
+      console.error('New password and confirm password do not match');
+      return;
+    }
+  
+    const updatedData = {
+      password: newPassword,
+    };
+  
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/user/update_password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(updatedData),
+      });
+  
+      if (response.ok) {
+        console.log('Password updated successfully');
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to update password:', errorData.error);
+      }
+    } catch (error) {
+      console.error('An error occurred while updating the password:', error);
+    }
+  };
 
 
   return (
@@ -43,50 +108,50 @@ export default function Details() {
                 <CardDescription>Manage your account information and preferences.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form>
-                  <div className="space-y-2">
-                    <div>
-                      <Label htmlFor="name">Name</Label>
-                      <Input defaultValue={userData.first_name} id="name" />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input defaultValue={userData.email} id="email" type="email" />
-                    </div>
-                  </div>
-                </form>
-              </CardContent>
-              <CardFooter>
-                <Button>Save Changes</Button>
-              </CardFooter>
+                 <form id = "accountForm" onSubmit={emailUpdate}>
+          <div className="space-y-2">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input defaultValue={userData.first_name} id="name" name="name" />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input defaultValue={userData.email} id="email" name="email" type="email" />
+            </div>
+          </div>
+        </form>
+      </CardContent>
+      <CardFooter>
+        <Button type="submit" form="accountForm">Save Changes</Button>
+      </CardFooter>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>Manage your account password.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form>
-                  <div className="space-y-2">
-                    <div>
-                      <Label htmlFor="current-password">Current Password</Label>
-                      <Input id="current-password" type="password" />
-                    </div>
-                    <div>
-                      <Label htmlFor="new-password">New Password</Label>
-                      <Input id="new-password" type="password" />
-                    </div>
-                    <div>
-                      <Label htmlFor="confirm-password">Confirm Password</Label>
-                      <Input id="confirm-password" type="password" />
-                    </div>
-                  </div>
-                </form>
-              </CardContent>
-              <CardFooter>
-                <Button>Save Changes</Button>
-              </CardFooter>
-            </Card>
+  <CardHeader>
+    <CardTitle>Password</CardTitle>
+    <CardDescription>Manage your account password.</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <form  id = "passwordUpdate" onSubmit={passwordUpdate}>
+      <div className="space-y-2">
+        <div>
+          <Label htmlFor="current-password">Current Password</Label>
+          <Input id="current-password" name="current-password" type="password" />
+        </div>
+        <div>
+          <Label htmlFor="new-password">New Password</Label>
+          <Input id="new-password" name="new-password" type="password" />
+        </div>
+        <div>
+          <Label htmlFor="confirm-password">Confirm Password</Label>
+          <Input id="confirm-password" name="confirm-password" type="password" />
+        </div>
+      </div>
+    </form>
+  </CardContent>
+  <CardFooter>
+    <Button type="submit" form="passwordUpdate">Save Changes</Button>
+  </CardFooter>
+</Card>
           </div>
           <div className="space-y-4">
             <Card>

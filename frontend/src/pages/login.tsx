@@ -8,6 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Terminal } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import axios from "axios";
@@ -18,6 +21,8 @@ export default function Login(props: { setToken: (arg0: any) => void; }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
   let token;
 if (typeof window !== 'undefined') {
   token = sessionStorage.getItem('token');
@@ -30,27 +35,44 @@ const handleSubmit = async (event: { preventDefault: () => void; }) => {
     const response = await axios.post("http://127.0.0.1:5000/auth/login", {
       email,
       password
-    }, { withCredentials: true }).then((response) => {
-      const user_id = response.data.user_id; // Assuming the server returns user_id
-      console.log("User ID:", user_id); // Log the user id
-      console.log(response.data.access_token);
-      sessionStorage.setItem('token', response.data.access_token);
-      router.push('/');
-    }).catch((error) => {
-      if (error.response) {
-        console.log(error.response);
-        console.log(error.response.status);
-        console.log(error.response.headers);
-      }
-    });
+    }, { withCredentials: true });
+
+    const user_id = response.data.user_id; // Assuming the server returns user_id
+    console.log("User ID:", user_id); // Log the user id
+    console.log(response.data.access_token);
+    sessionStorage.setItem('token', response.data.access_token);
+    router.push('/');
+    setShowSuccessAlert(true);
+    setShowErrorAlert(false);
   } catch (error) {
     console.error("Error during login:", error);
+    if (error.response && error.response.status === 401) {
+      setShowErrorAlert(true);
+      setShowSuccessAlert(false);
+    }
   }
 };
 
   return (
     <div>
-
+      {showSuccessAlert && (
+        <Alert>
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Heads up!</AlertTitle>
+          <AlertDescription>
+            You have successfully logged in.
+          </AlertDescription>
+        </Alert>
+      )}
+      {showErrorAlert && (
+        <Alert>
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Error!</AlertTitle>
+          <AlertDescription>
+            The password you entered is incorrect.
+          </AlertDescription>
+        </Alert>
+      )}
     
     {
     token && token !== 'undefined' ? <div>
@@ -98,9 +120,9 @@ const handleSubmit = async (event: { preventDefault: () => void; }) => {
           <Button type="submit" className="w-full">
             Login
           </Button>
-          <Button variant="outline" className="w-full">
+          {/* <Button variant="outline" className="w-full">
             Login with Google
-          </Button>
+          </Button> */}
         </form>
         <div className="mt-4 text-center text-sm">
           Don&apos;t have an account?{" "}

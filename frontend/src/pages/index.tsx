@@ -1,35 +1,26 @@
-"use client";
-
 import { useEffect, useState } from 'react';
 import { fetchUserId } from '../utils/auth';
-
-
 import { useRouter } from "next/router";
-import {JSX, SVGProps, use } from "react";
-
-import Submission from "@/components/submission";
-import QuestionLayout from "@/components/questionLayout";
-
+import { Submission } from "@/components/submission";
 
 const Home: React.FC = () => {
-  let token: string | null;
-  let id: string | null;
-
   const [userId, setUserId] = useState<string | null>(null);
-
-
-  if (typeof window !== 'undefined') {
-    token = sessionStorage.getItem('token');
-  
-
-  }
+  const [text, setText] = useState<string>("");
+  const [responseData, setResponseData] = useState<ResponseDataType>(null);
   const router = useRouter();
 
+  type ResponseDataType = {
+    original_sentence: string;
+    partial_sentence: string;
+    false_sentences: string[];
+  } | null;
+
   useEffect(() => {
+    const token = sessionStorage.getItem('token');
     if (!token) {
       router.push("/login");
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const getUserId = async () => {
@@ -40,49 +31,138 @@ const Home: React.FC = () => {
     getUserId();
   }, []);
 
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/process_text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json();
+      setResponseData(data);
+      console.log(data);
+
+      if (userId) {
+        await saveInteraction(userId, text, JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error('There has been a problem with your fetch operation: ', error);
+    }
+  };
+
+  const saveInteraction = async (userId: string, inputText: string, responseText: string) => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/interaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          input_text: inputText,
+          response_text: responseText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const result = await response.json();
+      console.log(result);
+    } catch (error) {
+      console.error('There has been a problem with your fetch operation: ', error);
+    }
+  };
 
   return (
-        <><div className="ml-auto flex gap-2">
-   
-    </div><><section className="w-full py-24 bg-gray-100 dark:bg-gray-800">
-      <div className="container px-4 md:px-6">
-        <div className="flex flex-col items-center justify-center space-y-4 text-center">
-          <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">Welcome to genText Inc</h1>
-          <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
-            We generated a test queizes as flashcard to help you to imporve your grades.
-          </p>
+    <>
+      <div className="ml-auto flex gap-2"></div>
+      <section className="w-full py-24 bg-gray-100 dark:bg-gray-800">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center justify-center space-y-4 text-center">
+            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">Welcome to genText Inc</h1>
+            <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-gray-400">
+              We generate test quizzes as flashcards to help you improve your grades.
+            </p>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-        <Submission />
+      <Submission onSubmit={handleSubmit} onTextChange={setText} />
 
-
-        <QuestionLayout />
-        <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-3 lg:gap-12">
-              <div className="flex flex-col items-center space-y-4 text-center">
-                <RocketIcon className="h-12 w-12" />
-                <h2 className="text-2xl font-bold">Fast Delivery</h2>
-                <p className="text-gray-500 dark:text-gray-400">We ensure quick delivery of our products.</p>
+      {responseData && (
+        <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+          <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8 w-full max-w-md">
+            <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Quiz Question</h1>
+            <p className="text-gray-700 dark:text-gray-400 mb-6">
+              {responseData.original_sentence}
+            </p>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <input
+                  className="h-4 w-4 text-red-500 focus:ring-red-500 border-gray-300 rounded"
+                  id="option1"
+                  name="answer"
+                  type="radio"
+                />
+                <label className="ml-2 text-gray-700 dark:text-gray-400 font-medium" htmlFor="option1">
+                  {responseData.partial_sentence}
+                </label>
               </div>
-              <div className="flex flex-col items-center space-y-4 text-center">
-                <ShieldIcon className="h-12 w-12" />
-                <h2 className="text-2xl font-bold">Secure Payment</h2>
-                <p className="text-gray-500 dark:text-gray-400">We provide secure payment options for our customers.</p>
-              </div>
-              <div className="flex flex-col items-center space-y-4 text-center">
-                <SettingsIcon className="h-12 w-12" />
-                <h2 className="text-2xl font-bold">24/7 Support</h2>
-                <p className="text-gray-500 dark:text-gray-400">We provide 24/7 support to all our customers.</p>
-              </div>
+              {responseData.false_sentences && responseData.false_sentences.map((sentence: string, index: number) => (
+                <div className="flex items-center" key={index}>
+                  <input
+                    className="h-4 w-4 text-gray-300 focus:ring-gray-500 border-gray-300 rounded"
+                    id={`option${index + 2}`}
+                    name="answer"
+                    type="radio"
+                  />
+                  <label className="ml-2 text-gray-700 dark:text-gray-400 font-medium" htmlFor={`option${index + 2}`}>
+                    {sentence}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end mt-6">
+              <button className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                Submit
+              </button>
             </div>
           </div>
-        </section></></>
+        </div>
+      )}
 
-
-   
+      <section className="w-full py-12 md:py-24 lg:py-32">
+        <div className="container px-4 md:px-6">
+          <div className="grid gap-6 lg:grid-cols-3 lg:gap-12">
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <RocketIcon className="h-12 w-12" />
+              <h2 className="text-2xl font-bold">Fast Delivery</h2>
+              <p className="text-gray-500 dark:text-gray-400">We ensure quick delivery of our products.</p>
+            </div>
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <ShieldIcon className="h-12 w-12" />
+              <h2 className="text-2xl font-bold">Secure Payment</h2>
+              <p className="text-gray-500 dark:text-gray-400">We provide secure payment options for our customers.</p>
+            </div>
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <SettingsIcon className="h-12 w-12" />
+              <h2 className="text-2xl font-bold">24/7 Support</h2>
+              <p className="text-gray-500 dark:text-gray-400">We provide 24/7 support to all our customers.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
   );
 };
 

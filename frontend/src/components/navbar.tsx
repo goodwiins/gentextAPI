@@ -63,18 +63,13 @@ if (!mounted) {
             <Link className="flex w-full items-center py-2 text-lg font-semibold" href="/">
               Home
             </Link>
-            <Link className="flex w-full items-center py-2 text-lg font-semibold" href="#">
-              About
+            <Link className="flex w-full items-center py-2 text-lg font-semibold" href="/setting">
+              Setting
             </Link>
-            <Link className="flex w-full items-center py-2 text-lg font-semibold" href="#">
-              Services
+            <Link className="flex w-full items-center py-2 text-lg font-semibold" href="/history">
+              History
             </Link>
-            <Link className="flex w-full items-center py-2 text-lg font-semibold" href="#">
-              Portfolio
-            </Link>
-            <Link className="flex w-full items-center py-2 text-lg font-semibold" href="#">
-              Contact
-            </Link>
+            
           </div>
         </SheetContent>
       </Sheet>
@@ -136,10 +131,10 @@ if (!mounted) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+              {/* <DropdownMenuSeparator />
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator /> */}
               <DropdownMenuItem >
               <LogOut className="mr-2 h-4 w-4" />
                <span onClick={() => {

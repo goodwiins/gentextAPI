@@ -4,46 +4,30 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ChangeEvent, useState } from "react";
 
-export default function Submission(): JSX.Element {
+type SubmissionProps = {
+  onSubmit: () => void;
+  onTextChange: (text: string) => void;
+};
+
+export const Submission: React.FC<SubmissionProps> = ({ onSubmit, onTextChange }) => {
   const [text, setText] = useState<string>("");
   const [wordCount, setWordCount] = useState<number>(0);
   const [charCount, setCharCount] = useState<number>(0);
 
-  const handleTextChange = async (event: ChangeEvent<HTMLTextAreaElement>) => {
+  const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const newText = event.target.value;
     const words = newText.trim().split(/\s+/);
     setWordCount(words[0] === "" ? 0 : words.length);
     setCharCount(newText.length);
     setText(newText);
-   
+    onTextChange(newText); // Call the parent's onTextChange method
   };
-  const handleSubmit = async () => {
-    try {
-      const response = await fetch('http://127.0.0.1:5000/process_text', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      // If you expect a JSON response, you can parse it here
-      const data = await response.json();
-      console.log(data);
-    } catch (error) {
-      console.error('There has been a problem with your fetch operation: ', error);
-    }
-  };
-  
 
   const handleClearText = () => {
     setText("");
     setWordCount(0);
     setCharCount(0);
+    onTextChange(""); // Clear the text in the parent component as well
   };
 
   return (
@@ -79,13 +63,13 @@ export default function Submission(): JSX.Element {
             <Badge variant="secondary">WAITING FOR YOUR INPUT</Badge>
           </div>
           <div className="flex space-x-4">
-            <Button onClick={handleSubmit}>Submit</Button>
+            <Button onClick={onSubmit}>Submit</Button>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
 
 function RefreshCwIcon(props: JSX.IntrinsicAttributes & React.SVGProps<SVGSVGElement>): JSX.Element {
   return (
@@ -100,6 +84,7 @@ function RefreshCwIcon(props: JSX.IntrinsicAttributes & React.SVGProps<SVGSVGEle
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className="cursor-pointer"
     >
       <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
       <path d="M21 3v5h-5" />

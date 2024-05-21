@@ -19,7 +19,7 @@ from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     create_refresh_token,
     get_jwt_identity, set_access_cookies,
-    set_refresh_cookies, unset_jwt_cookies
+    set_refresh_cookies, unset_jwt_cookies, get_jwt_identity
 )
 
 from routes import *
@@ -69,6 +69,44 @@ def login_token():
         "access_token": access_token,
         "user_id": user.id,
     }), 200
+
+@app.route('/api/user/update', methods=['POST'])
+@jwt_required()
+@cross_origin(origin='http://localhost:3000', supports_credentials=True)
+def update_user():
+    data = request.get_json()
+    identity = get_jwt_identity()  # Get the identity of the current user
+    user_id = identity['user_id']  # Extract the user_id from the identity
+    user = User.query.get(user_id)
+    if user:
+        user.first_name = data.get('first_name', user.first_name)
+        user.email = data.get('email', user.email)
+        db.session.commit()
+        return jsonify(user.to_dict()), 200
+    else:
+        return jsonify({"error": "User not found"}), 404
+    
+@app.route('/api/user/update_password', methods=['POST'])
+@jwt_required()
+@cross_origin(origin='http://localhost:3000', supports_credentials=True)
+def update_password():
+    try:
+        data = request.get_json()
+        new_password = data.get('password')
+        if not new_password:
+            return jsonify({"error": "New password is required"}), 400
+
+        identity = get_jwt_identity()
+        user_id = identity['user_id']
+        user = User.query.get(user_id)
+        if user:
+            user.password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+            db.session.commit()
+            return jsonify({"message": "Password updated successfully"}), 200
+        else:
+            return jsonify({"error": "User not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/user/<user_id>/data', methods=['GET'])
 @jwt_required()
