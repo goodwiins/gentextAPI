@@ -8,7 +8,8 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 
 export default function Details() {
-  const [userData, setUserData] = useState({ name: '', email: '' });
+  const [userData, setUserData] = useState({ first_name: '', email: '', last_name: '', id: '' });
+
   useEffect(() => {
     fetchUserId().then(user_id => {
       if (user_id) {
@@ -30,6 +31,7 @@ export default function Details() {
     });
   }, []);
 
+
   return (
     <main className="flex-1 p-6 md:p-0">
       <div className="max-w-4xl mx-auto">
@@ -45,11 +47,11 @@ export default function Details() {
                   <div className="space-y-2">
                     <div>
                       <Label htmlFor="name">Name</Label>
-                      <Input defaultValue="John Doe" id="name" />
+                      <Input defaultValue={userData.first_name} id="name" />
                     </div>
                     <div>
                       <Label htmlFor="email">Email</Label>
-                      <Input defaultValue="john@example.com" id="email" type="email" />
+                      <Input defaultValue={userData.email} id="email" type="email" />
                     </div>
                   </div>
                 </form>

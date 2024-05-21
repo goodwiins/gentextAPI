@@ -10,12 +10,10 @@ from config import ApplicationConfig
 from flask_cors import CORS, cross_origin
 from model import db, User, Interaction
 
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
-from sentence_transformers import SentenceTransformer
-import torch
-from nltk.tokenize import sent_tokenize
-import summa.summarizer
-import benepar
+
+
+
+from text_process import process_text
 
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
@@ -28,10 +26,7 @@ from routes import *
 
 app = Flask(__name__)
 
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-model = GPT2LMHeadModel.from_pretrained("gpt2", pad_token_id=tokenizer.eos_token_id)
-model_BERT = SentenceTransformer('bert-base-nli-mean-tokens')
-benepar_parser = benepar.Parser("benepar_en3")
+
 
 app.config.from_object(ApplicationConfig)
 
@@ -44,59 +39,15 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-def preprocess(sentences):
-    output = []
-    for sent in sentences:
-        if any(re.findall(r'[\'"][\w\s.:;,!?\\-]+[\'"]', sent)) or '?' in sent:
-            continue
-        output.append(sent.strip(string.punctuation))
-    return output
 
-def get_candidate_sents(r_text, ratio=0.3):
-    candidate_sents = summa.summarizer.summarize(r_text, ratio)
-    candidate_sents_list = sent_tokenize(candidate_sents)
-    candidate_sents_list = [re.split(r'[:;]+', x)[0] for x in candidate_sents_list]
-    filtered_list = [sent for sent in candidate_sents_list if 30 < len(sent) < 150]
-    return filtered_list
-
-def get_sentence_completions(sentences):
-    completions = {}
-    for sentence in sentences:
-        tree = benepar_parser.parse(sentence)
-        last_nounphrase, last_verbphrase = get_right_most_VP_or_NP(tree)
-        completions[sentence] = [last_nounphrase, last_verbphrase]
-    return completions
-
-def get_right_most_VP_or_NP(parse_tree, last_NP=None, last_VP=None):
-    for subtree in reversed(parse_tree):
-        if type(subtree) is not str and subtree.label() in ["NP", "VP"]:
-            if subtree.label() == "NP":
-                last_NP = subtree
-            else:
-                last_VP = subtree
-    return last_NP, last_VP
-
-def store(completions):
-    results = []
-    for sentence, phrases in completions.items():
-        result = {"sentence": sentence, "phrases": [p.flatten() for p in phrases if p]}
-        results.append(result)
-    return results
-
-@app.route('/process', methods=['POST'])
-def process_text():
-    content = request.json.get('text', None)
-    if not content:
+@app.route('/process_text', methods=['POST'])
+def process_text_endpoint():
+    if not request.json or 'text' not in request.json:
         return jsonify({"error": "No text provided"}), 400
-
-    try:
-        candidate_sents = get_candidate_sents(content)
-        filtered_sents = preprocess(candidate_sents)
-        sentence_completions = get_sentence_completions(filtered_sents)
-        response = store(sentence_completions)
-        return jsonify({"result": response}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    
+    text = request.json['text']
+    result = process_text(text)
+    return jsonify(result)
 
 @app.route('/auth/login', methods=["POST"])
 @cross_origin(origin='http://localhost:3000', supports_credentials=True)
