@@ -12,7 +12,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 
 import { Input } from "@/components/ui/input"
-
+import details from "../components/details";
+import Details from "../components/details"
 export default function Setting() {
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -26,32 +27,13 @@ export default function Setting() {
             className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0"
           >
             <Link href="#" className="font-semibold text-primary">
-              General
+              Account and Security
             </Link>
-            <Link href="#">Security</Link>
-            <Link href="#">Integrations</Link>
-            <Link href="#">Support</Link>
-            <Link href="#">Organizations</Link>
-            <Link href="#">Advanced</Link>
+            
           </nav>
           <div className="grid gap-6">
-            <Card x-chunk="dashboard-04-chunk-1">
-              <CardHeader>
-                <CardTitle>Store Name</CardTitle>
-                <CardDescription>
-                  Used to identify your store in the marketplace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form>
-                  <Input placeholder="Store Name" />
-                </form>
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                <Button>Save</Button>
-              </CardFooter>
-            </Card>
-            <Card x-chunk="dashboard-04-chunk-2">
+          <Details/>
+            {/* <Card x-chunk="dashboard-04-chunk-2">
               <CardHeader>
                 <CardTitle>Plugins Directory</CardTitle>
                 <CardDescription>
@@ -79,7 +61,7 @@ export default function Setting() {
               <CardFooter className="border-t px-6 py-4">
                 <Button>Save</Button>
               </CardFooter>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </main>

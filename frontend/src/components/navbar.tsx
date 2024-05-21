@@ -14,7 +14,7 @@ import { NavigationMenuLink, NavigationMenuList, NavigationMenu } from "@/compon
 import { JSX, SVGProps } from "react"
 import axios from "axios"
 import { useRouter } from "next/router"
-
+import React, { useEffect, useState } from 'react';
 
 
 
@@ -23,30 +23,29 @@ import { useRouter } from "next/router"
 export default function Navbar() {
 
   const router = useRouter();
-    function logMeOut() {
-        axios({
-            method: "POST",
-            url:"http://127.0.0.1:5000/api/logout",
-        })
-        .then((response) => {
-            props.token()
-            localStorage.removeItem('email')
-            router.push('/');
-        }).catch((error) => {
-            if (error.response) {
-                console.log(error.response)
-                console.log(error.response.status)
-                console.log(error.response.headers)
-            }
-        })
-    }
+  const [mounted, setMounted] = useState(false);
+  let token;
+if (typeof window !== 'undefined') {
+  token = sessionStorage.getItem('token');
+}
 
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+if (!mounted) {
+  return null; // Render nothing on the initial server render
+}
+    
 
 
 
 
 
   return (
+
+    token ? (
     <header className="flex h-20 w-full shrink-0 items-center px-4 md:px-6">
       <Sheet>
         <SheetTrigger asChild>
@@ -93,22 +92,7 @@ export default function Navbar() {
               Home
             </Link>
           </NavigationMenuLink>
-          <NavigationMenuLink asChild>
-            <Link
-              className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50 dark:bg-gray-950 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus:bg-gray-800 dark:focus:text-gray-50 dark:data-[active]:bg-gray-800/50 dark:data-[state=open]:bg-gray-800/50"
-              href="/login"
-            >
-              Login
-            </Link>
-          </NavigationMenuLink>
-          <NavigationMenuLink asChild>
-            <Link
-              className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50 dark:bg-gray-950 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus:bg-gray-800 dark:focus:text-gray-50 dark:data-[active]:bg-gray-800/50 dark:data-[state=open]:bg-gray-800/50"
-              href="/signup"
-            >
-             Signup
-            </Link>
-          </NavigationMenuLink>
+        
           <NavigationMenuLink asChild>
             <Link
               className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50 dark:bg-gray-950 dark:hover:bg-gray-800 dark:hover:text-gray-50 dark:focus:bg-gray-800 dark:focus:text-gray-50 dark:data-[active]:bg-gray-800/50 dark:data-[state=open]:bg-gray-800/50"
@@ -131,12 +115,8 @@ export default function Navbar() {
         </NavigationMenuList>
       </NavigationMenu>
       <div className="relative ml-auto flex-1 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-            />
+            
+           
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -160,14 +140,18 @@ export default function Navbar() {
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Support</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logMeOut}>
+              <DropdownMenuItem >
               <LogOut className="mr-2 h-4 w-4" />
-               <span>Log out</span>
+               <span onClick={() => {
+        sessionStorage.removeItem('token')
+        router.push('/login');
+      }}
+               >Log out</span>
         
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-    </header>
+    </header>) : ( null)
   )
 }
 

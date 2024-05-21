@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,49 +11,57 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import axios from "axios";
+import { useRouter } from "next/router";
 
-export default function Login() {
+export default function Login(props: { setToken: (arg0: any) => void; }) {
+  // const {store, action} = useContext(Constext);
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  let token;
+if (typeof window !== 'undefined') {
+  token = sessionStorage.getItem('token');
+}
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (event: { preventDefault: () => void; }) => {
+    event.preventDefault()
   
     try {
-      const response = await axios.post("http://127.0.0.1:5000/api/logintoken", {
+      const response = await axios.post("http://127.0.0.1:5000/auth/login", {
         email,
         password
-      });
-  
-      console.log(response);
-      // Handle successful login
-      
-      localStorage.setItem('email', email);
-    } catch (error) {
-      console.error(error);
-      // Handle login error
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.log(error.response.data);
-        console.log(error.response.status);
-        console.log(error.response.headers);
-        if (error.response.status === 401) {
-          alert("Invalid credentials");
+      }).then((response) => {
+        const user_id = response.data.user_id; // Assuming the server returns user_id
+        console.log("User ID:", user_id); // Log the user id
+        console.log(response.data.access_token)
+        sessionStorage.setItem('token', response.data.access_token)
+        router.push('/');
+      }).catch((error) => {
+        if (error.response) {
+          console.log(error.response)
+          console.log(error.response.status)
+          console.log(error.response.headers)
         }
-      } else if (error.request) {
-        // The request was made but no response was received
-        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
-        // http.ClientRequest in Node.js
-        console.log(error.request);
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.log('Error', error.message);
-      }
+      })
+
+      
+    } catch (error) {
+      console.error(error)
     }
-  };
+  }
 
   return (
+    <div>
+
+    
+    {
+    token && token !== 'undefined' ? <div>
+      <h1>You are already logged in</h1>
+      <Button onClick={() => {
+        sessionStorage.removeItem('token')
+        router.push('/');
+      }}>Logout</Button>
+    </div> :
     <Card className="mx-auto max-w-sm mt-20">
       <CardHeader>
         <CardTitle className="text-2xl">Login</CardTitle>
@@ -104,5 +112,8 @@ export default function Login() {
         </div>
       </CardContent>
     </Card>
+    }
+    
+    </div>
   );
 }

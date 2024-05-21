@@ -1,54 +1,50 @@
-import Image from "next/image";
+"use client";
 
-import  httpClient  from "../httpClient";
+import { useEffect, useState } from 'react';
+import { fetchUserId } from '../utils/auth';
 
-import { Inter } from "next/font/google";
-import {JSX, SVGProps, use, useEffect} from "react";
-import { useState } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { useRouter } from "next/router";
+import {JSX, SVGProps, use } from "react";
+
 import Submission from "@/components/submission";
+import QuestionLayout from "@/components/questionLayout";
 
 
 const Home: React.FC = () => {
-  const [user, setUser] = useState(null);
+  let token: string | null;
+  let id: string | null;
 
- 
+  const [userId, setUserId] = useState<string | null>(null);
+
+
+  if (typeof window !== 'undefined') {
+    token = sessionStorage.getItem('token');
+  
+
+  }
+  const router = useRouter();
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await httpClient.get('http://localhost:5000/api/@me');
+    if (!token) {
+      router.push("/login");
+    }
+  }, []);
 
-        if (response.status !== 200) {
-          throw new Error('Network response was not ok');
-        }
-
-        const data = response.data; // get data from the response
-        setUser(data); // set user data
-      } catch (error) {
-        console.log("Not authenticated", error);
-      }
+  useEffect(() => {
+    const getUserId = async () => {
+      const id = await fetchUserId();
+      setUserId(id);
     };
-    fetchUserData();
-}, []);
 
-
-  const logoutUser = () => {
-  setUser(null); // Clear the user information from the application's state
-  localStorage.removeItem('user'); // Clear the user information from local storage
-};
-
+    getUserId();
+  }, []);
 
 
   return (
-    <><section className="w-full py-24 bg-gray-100 dark:bg-gray-800">
+        <><div className="ml-auto flex gap-2">
+   
+    </div><><section className="w-full py-24 bg-gray-100 dark:bg-gray-800">
       <div className="container px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">Welcome to genText Inc</h1>
@@ -58,33 +54,32 @@ const Home: React.FC = () => {
         </div>
       </div>
     </section>
-    
-    <Submission />
 
-    
-    
-    
-    <section className="w-full py-12 md:py-24 lg:py-32">
-        <div className="container px-4 md:px-6">
-          <div className="grid gap-6 lg:grid-cols-3 lg:gap-12">
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <RocketIcon className="h-12 w-12" />
-              <h2 className="text-2xl font-bold">Fast Delivery</h2>
-              <p className="text-gray-500 dark:text-gray-400">We ensure quick delivery of our products.</p>
-            </div>
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <ShieldIcon className="h-12 w-12" />
-              <h2 className="text-2xl font-bold">Secure Payment</h2>
-              <p className="text-gray-500 dark:text-gray-400">We provide secure payment options for our customers.</p>
-            </div>
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <SettingsIcon className="h-12 w-12" />
-              <h2 className="text-2xl font-bold">24/7 Support</h2>
-              <p className="text-gray-500 dark:text-gray-400">We provide 24/7 support to all our customers.</p>
+        <Submission />
+
+
+        <QuestionLayout />
+        <section className="w-full py-12 md:py-24 lg:py-32">
+          <div className="container px-4 md:px-6">
+            <div className="grid gap-6 lg:grid-cols-3 lg:gap-12">
+              <div className="flex flex-col items-center space-y-4 text-center">
+                <RocketIcon className="h-12 w-12" />
+                <h2 className="text-2xl font-bold">Fast Delivery</h2>
+                <p className="text-gray-500 dark:text-gray-400">We ensure quick delivery of our products.</p>
+              </div>
+              <div className="flex flex-col items-center space-y-4 text-center">
+                <ShieldIcon className="h-12 w-12" />
+                <h2 className="text-2xl font-bold">Secure Payment</h2>
+                <p className="text-gray-500 dark:text-gray-400">We provide secure payment options for our customers.</p>
+              </div>
+              <div className="flex flex-col items-center space-y-4 text-center">
+                <SettingsIcon className="h-12 w-12" />
+                <h2 className="text-2xl font-bold">24/7 Support</h2>
+                <p className="text-gray-500 dark:text-gray-400">We provide 24/7 support to all our customers.</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section></>
+        </section></></>
 
 
    
