@@ -1,40 +1,109 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# GenText API - Quiz Generation Platform
 
-## Getting Started
+A web application that generates quiz questions from text input using AI technology. Built with Next.js (frontend) and Python Flask (backend).
 
-First, run the development server:
+## Features
+
+- Text-based quiz generation
+- Interactive quiz interface
+- User authentication
+- Real-time processing
+- Responsive design
+
+## Tech Stack
+
+- **Frontend**: Next.js, TypeScript, TailwindCSS
+- **Backend**: Python Flask, SQLAlchemy
+- **Database**: SQLite
+- **Authentication**: JWT
+
+## Prerequisites
+
+- Node.js 18+ 
+- Python 3.8+
+- Redis (for session management)
+
+## Installation
+
+### Frontend Setup
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/gentextAPI.git
+cd gentextAPI/frontend
+
+# Install dependencies
+npm install
+
+# Create .env.local file
+cp .env.example .env.local
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Backend Setup
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+```bash
+# Navigate to server directory
+cd ../server
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+# Install dependencies
+pip install -r requirements.txt
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+# Set up environment variables
+cp .env.example .env
 
-## Learn More
+# Start the server
+python app.py
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Usage
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Open [http://localhost:3000](http://localhost:3000) in your browser
+2. Log in or create an account
+3. Paste your text in the input field
+4. Click "Generate Quiz" to create questions
+5. Answer the generated questions
+6. Submit your answers to see results
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## Development
 
-## Deploy on Vercel
+```bash
+# Run tests
+npm test
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Build for production
+npm run build
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+# Start production server
+npm start
+```
+
+## API Endpoints
+
+- `POST /api/v2/process_text` - Generate quiz from text
+- `POST /api/auth/login` - User authentication
+- `POST /api/auth/register` - User registration
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Next.js](https://nextjs.org/)
+- [Flask](https://flask.palletsprojects.com/)
+- [TailwindCSS](https://tailwindcss.com/)
