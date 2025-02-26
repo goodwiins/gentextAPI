@@ -24,7 +24,7 @@ export default function Signup() {
     event.preventDefault();
 
     try {
-      const response = await axios.post("http://127.0.0.1:5000/auth/signup", {
+      const response = await axios.post("http://127.0.0.1:8000/auth/signup", {
         email,
         password,
         first_name: firstName,

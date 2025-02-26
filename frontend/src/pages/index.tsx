@@ -33,7 +33,7 @@ const Home: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/process_text', {
+      const response = await fetch('http://127.0.0.1:8000/api/v2/process_text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,7 +59,7 @@ const Home: React.FC = () => {
 
   const saveInteraction = async (userId: string, inputText: string, responseText: string) => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/interaction', {
+      const response = await fetch('http://127.0.0.1:8000/api/interaction', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

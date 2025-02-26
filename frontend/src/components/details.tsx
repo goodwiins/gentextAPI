@@ -15,7 +15,7 @@ export default function Details() {
       if (user_id) {
         // Fetch all user data
         axios
-          .get(`http://127.0.0.1:5000/api/user/${user_id}/data`, {
+          .get(`http://127.0.0.1:8000/api/user/${user_id}/data`, {
             headers: {
               Authorization: `Bearer ${sessionStorage.getItem('token')}`
             }
@@ -39,7 +39,7 @@ export default function Details() {
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/user/update', { // Adjust the API endpoint as necessary
+      const response = await fetch('http://127.0.0.1:8000/api/user/update', { // Adjust the API endpoint as necessary
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export default function Details() {
     };
   
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/user/update_password', {
+      const response = await fetch('http://127.0.0.1:8000/api/user/update_password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

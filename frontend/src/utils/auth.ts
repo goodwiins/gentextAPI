@@ -9,7 +9,7 @@ export const fetchUserId = async (): Promise<string | null> => {
   }
 
   try {
-    const response = await fetch('http://localhost:5000/protected', {
+    const response = await fetch('http://localhost:8000/protected', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

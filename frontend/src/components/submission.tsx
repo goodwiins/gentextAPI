@@ -38,7 +38,7 @@ export const Submission: React.FC<SubmissionProps> = ({ onSubmit, onTextChange }
             <Button variant="outline">READABILITY</Button>
           </div>
           <div className="text-sm">
-            <span className="font-medium">{charCount}/15000 CHARS</span> ~ {wordCount} WORDS
+            <span className="font-medium">{charCount}/18000 CHARS</span> ~ {wordCount} WORDS
           </div>
         </div>
         <Textarea

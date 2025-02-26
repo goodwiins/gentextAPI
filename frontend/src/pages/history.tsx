@@ -148,7 +148,7 @@ export default function history() {
         if (user_id) {
           // Fetch user interactions
           axios
-            .get(`http://127.0.0.1:5000/api/user/${user_id}/interactions`, {
+            .get(`http://127.0.0.1:8000/api/user/${user_id}/interactions`, {
               headers: {
                 Authorization: `Bearer ${sessionStorage.getItem('token')}`
               }
