@@ -49,9 +49,10 @@ ENV/
 *.sqlite
 *.db
 
+
 # IDE files
-.idea/
-.vscode/
+*.idea/
+*.vscode/
 *.swp
 *.swo
 
