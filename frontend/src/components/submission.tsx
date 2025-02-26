@@ -1,3 +1,4 @@
+// frontend/src/components/submission.tsx
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,9 +8,14 @@ import { ChangeEvent, useState } from "react";
 type SubmissionProps = {
   onSubmit: () => void;
   onTextChange: (text: string) => void;
+  isLoading?: boolean; // Add this prop
 };
 
-export const Submission: React.FC<SubmissionProps> = ({ onSubmit, onTextChange }) => {
+export const Submission: React.FC<SubmissionProps> = ({ 
+  onSubmit, 
+  onTextChange,
+  isLoading = false // Default to false
+}) => {
   const [text, setText] = useState<string>("");
   const [wordCount, setWordCount] = useState<number>(0);
   const [charCount, setCharCount] = useState<number>(0);
@@ -46,24 +52,36 @@ export const Submission: React.FC<SubmissionProps> = ({ onSubmit, onTextChange }
           placeholder="PASTE YOUR TEXT HERE"
           value={text}
           onChange={handleTextChange}
+          disabled={isLoading}
         />
         <div className="flex items-center justify-between mt-4">
           <div className="flex items-center space-x-2">
-            <Checkbox id="terms" />
+            <Checkbox id="terms" disabled={isLoading} />
             <label className="text-sm" htmlFor="terms">
               I AGREE TO THE TERMS OF SERVICE
             </label>
           </div>
           <div className="flex space-x-4">
-            <RefreshCwIcon className="text-lg cursor-pointer" onClick={handleClearText} />
+            <RefreshCwIcon 
+              className={`text-lg cursor-pointer ${isLoading ? 'opacity-50' : ''}`} 
+              onClick={isLoading ? undefined : handleClearText} 
+            />
           </div>
         </div>
         <div className="flex justify-between mt-4">
           <div className="flex items-center space-x-2">
-            <Badge variant="secondary">WAITING FOR YOUR INPUT</Badge>
+            <Badge variant="secondary">
+              {isLoading ? "PROCESSING..." : "WAITING FOR YOUR INPUT"}
+            </Badge>
           </div>
           <div className="flex space-x-4">
-            <Button onClick={onSubmit}>Submit</Button>
+            <Button 
+              onClick={onSubmit} 
+              disabled={isLoading || !text.trim()} 
+              className={isLoading ? "opacity-50 cursor-not-allowed" : ""}
+            >
+              {isLoading ? "Processing..." : "Submit"}
+            </Button>
           </div>
         </div>
       </div>

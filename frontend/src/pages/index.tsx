@@ -1,19 +1,16 @@
+// frontend/src/pages/index.tsx
 import { useEffect, useState } from 'react';
 import { fetchUserId } from '../utils/auth';
 import { useRouter } from "next/router";
 import { Submission } from "@/components/submission";
+import QuizDisplay, { QuizQuestion } from '@/components/QuizDisplay';
 
 const Home: React.FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [text, setText] = useState<string>("");
-  const [responseData, setResponseData] = useState<ResponseDataType>(null);
+  const [responseData, setResponseData] = useState<QuizQuestion[] | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const router = useRouter();
-
-  type ResponseDataType = {
-    original_sentence: string;
-    partial_sentence: string;
-    false_sentences: string[];
-  } | null;
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -33,10 +30,14 @@ const Home: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
+      setIsLoading(true); // Set loading to true when starting the request
+      const token = sessionStorage.getItem('token');
+      
       const response = await fetch('http://127.0.0.1:8000/api/v2/process_text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ text }),
       });
@@ -48,39 +49,16 @@ const Home: React.FC = () => {
       const data = await response.json();
       setResponseData(data);
       console.log(data);
-
-      if (userId) {
-        await saveInteraction(userId, text, JSON.stringify(data));
-      }
     } catch (error) {
       console.error('There has been a problem with your fetch operation: ', error);
+    } finally {
+      setIsLoading(false); // Set loading to false when request completes
     }
   };
 
-  const saveInteraction = async (userId: string, inputText: string, responseText: string) => {
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/interaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          input_text: inputText,
-          response_text: responseText,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const result = await response.json();
-      console.log(result);
-    } catch (error) {
-      console.error('There has been a problem with your fetch operation: ', error);
-    }
+  const handleQuizSubmit = (answers: {[key: number]: string}) => {
+    console.log('Quiz submitted with answers:', answers);
+    // You can send these answers to your backend here
   };
 
   return (
@@ -97,49 +75,26 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      <Submission onSubmit={handleSubmit} onTextChange={setText} />
+      <Submission 
+        onSubmit={handleSubmit} 
+        onTextChange={setText} 
+        isLoading={isLoading}
+      />
 
-      {responseData && (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-          <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8 w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Quiz Question</h1>
-            <p className="text-gray-700 dark:text-gray-400 mb-6">
-              {responseData.original_sentence}
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <input
-                  className="h-4 w-4 text-red-500 focus:ring-red-500 border-gray-300 rounded"
-                  id="option1"
-                  name="answer"
-                  type="radio"
-                />
-                <label className="ml-2 text-gray-700 dark:text-gray-400 font-medium" htmlFor="option1">
-                  {responseData.partial_sentence}
-                </label>
-              </div>
-              {responseData.false_sentences && responseData.false_sentences.map((sentence: string, index: number) => (
-                <div className="flex items-center" key={index}>
-                  <input
-                    className="h-4 w-4 text-gray-300 focus:ring-gray-500 border-gray-300 rounded"
-                    id={`option${index + 2}`}
-                    name="answer"
-                    type="radio"
-                  />
-                  <label className="ml-2 text-gray-700 dark:text-gray-400 font-medium" htmlFor={`option${index + 2}`}>
-                    {sentence}
-                  </label>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end mt-6">
-              <button className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
-                Submit
-              </button>
-            </div>
-          </div>
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-500"></div>
+          <p className="ml-4 text-xl font-semibold text-gray-700">Processing your text...</p>
         </div>
       )}
+
+      {!isLoading && responseData && Array.isArray(responseData) && responseData.length > 0 ? (
+        <QuizDisplay 
+          questions={responseData} 
+          originalText={text} 
+          onSubmit={handleQuizSubmit} 
+        />
+      ) : null}
 
       <section className="w-full py-12 md:py-24 lg:py-32">
         <div className="container px-4 md:px-6">
@@ -166,28 +121,8 @@ const Home: React.FC = () => {
   );
 };
 
-
-function MountainIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
-    </svg>
-  )
-}
-
-
-function RocketIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
+// SVG icon components
+function RocketIcon(props: JSX.IntrinsicAttributes & React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
@@ -209,8 +144,7 @@ function RocketIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
   )
 }
 
-
-function SettingsIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
+function SettingsIcon(props: JSX.IntrinsicAttributes & React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
@@ -230,8 +164,7 @@ function SettingsIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) 
   )
 }
 
-
-function ShieldIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
+function ShieldIcon(props: JSX.IntrinsicAttributes & React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}

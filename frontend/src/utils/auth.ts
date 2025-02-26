@@ -1,7 +1,6 @@
 // utils/auth.ts
-
 export const fetchUserId = async (): Promise<string | null> => {
-  const token = sessionStorage.getItem('token'); // Fetch token from sessionStorage
+  const token = sessionStorage.getItem('token');
   console.log('Token:', token);
   if (!token) {
     console.log('Token not found');
@@ -9,7 +8,9 @@ export const fetchUserId = async (): Promise<string | null> => {
   }
 
   try {
-    const response = await fetch('http://localhost:8000/protected', {
+    // This URL was incorrect in your code - it should use your API endpoint
+    // 'http://localhost:8000/protected' is probably wrong
+    const response = await fetch('http://127.0.0.1:8000/api/user', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -17,11 +18,14 @@ export const fetchUserId = async (): Promise<string | null> => {
       },
     });
 
+    console.log('User ID response status:', response.status);
+    
     if (response.ok) {
       const data = await response.json();
+      console.log('User ID data:', data);
       return data.user_id;
     } else {
-      console.log('Failed to fetch user id');
+      console.log('Failed to fetch user id, status:', response.status);
       return null;
     }
   } catch (error) {

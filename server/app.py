@@ -7,13 +7,14 @@ from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
 from flask import Flask, request, jsonify, url_for, send_from_directory, current_app, g
+
 from flask_bcrypt import Bcrypt
 from flask_session import Session
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     create_refresh_token, get_jwt_identity, set_access_cookies,
-    set_refresh_cookies, unset_jwt_cookies
+    set_refresh_cookies, unset_jwt_cookies,  verify_jwt_in_request
 )
 
 # Internal imports
@@ -148,6 +149,57 @@ def register_routes(app, bcrypt):
             app.logger.error(f"Error processing text: {str(e)}")
             return jsonify({"error": "Failed to process text", "message": str(e)}), 500
     
+def register_routes(app, bcrypt):
+    """Register routes for the application"""
+    
+    # API Health Check
+    @app.route('/api/health', methods=['GET'])
+    def health_check():
+        return jsonify({"status": "ok", "message": "Service is running"}), 200
+    
+    # Text Processing Endpoints
+    @app.route('/api/process_text', methods=['POST'])
+    def process_text_endpoint():
+        """Process text to generate educational questions"""
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+        
+        data = request.get_json()
+        if 'text' not in data or not data['text'].strip():
+            return jsonify({"error": "Text field is required and cannot be empty"}), 400
+        
+        try:
+            # Track start time for performance monitoring
+            import time
+            start_time = time.time()
+            
+            # Process the text and generate questions
+            result = text_process.process_text(data['text'])
+            
+            # Log processing time for monitoring
+            processing_time = time.time() - start_time
+            app.logger.info(f"Text processed in {processing_time:.2f} seconds")
+            
+            # If authenticated, save the interaction
+            jwt_identity = get_jwt_identity() if request.headers.get('Authorization') else None
+            if jwt_identity:
+                try:
+                    interaction = Interaction(
+                        user_id=jwt_identity['user_id'],
+                        input_text=data['text'][:1000],  # Limit stored text size
+                        response_text=result[:1000] if isinstance(result, str) else json.dumps(result)[:1000]
+                    )
+                    db.session.add(interaction)
+                    db.session.commit()
+                except Exception as e:
+                    app.logger.error(f"Failed to save interaction: {str(e)}")
+            
+            return jsonify(json.loads(result) if isinstance(result, str) else result)
+        
+        except Exception as e:
+            app.logger.error(f"Error processing text: {str(e)}")
+            return jsonify({"error": "Failed to process text", "message": str(e)}), 500
+    
     # Enhanced Text Processing with Improved Generator
     @app.route('/api/v2/process_text', methods=['POST'])
     def process_text_improved():
@@ -188,25 +240,49 @@ def register_routes(app, bcrypt):
                 }
                 results.append(temp)
             
-            # Save results using the /api/interaction endpoint
-            jwt_identity = get_jwt_identity() if request.headers.get('Authorization') else None
-            if jwt_identity:
-                interaction_data = {
-                    "user_id": jwt_identity['user_id'],
-                    "input_text": data['text'][:1000],  # Limit stored text size
-                    "response_text": json.dumps(results)[:1000]  # Limit stored response size
-                }
-                response = app.test_client().post('/api/interaction', json=interaction_data)
-                if response.status_code != 201:
-                    app.logger.error(f"Failed to save interaction: {response.get_json().get('message')}")
+            # Check for authentication token - handle JWT properly
+            user_id = None
+            try:
             
-            print(results)
+                # Optional verification - won't throw an exception if no token
+                verify_jwt_in_request(optional=True)
+                # Now safely get the identity if a token exists
+                jwt_identity = get_jwt_identity()
+                if jwt_identity:
+                    user_id = jwt_identity['user_id']
+                    app.logger.info(f"Found user_id in JWT: {user_id}")
+            except Exception as e:
+                app.logger.warning(f"JWT verification error: {str(e)}")
+            
+            # Try to save the interaction if we have a user ID
+            if user_id:
+                try:
+                    # Verify user exists
+                    user = User.query.get(user_id)
+                    if not user:
+                        app.logger.error(f"User with ID {user_id} not found in database")
+                    else:
+                        # Create a new interaction object
+                        interaction = Interaction(
+                            user_id=user_id,
+                            input_text=data['text'][:2000],
+                            response_text=json.dumps(results)[:5000]
+                        )
+                        # Add and commit to database
+                        db.session.add(interaction)
+                        db.session.commit()
+                        app.logger.info(f"Successfully saved interaction for user {user_id}")
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"Database error saving interaction: {str(e)}")
+            else:
+                app.logger.info("No authenticated user found, not saving interaction")
+            
             return jsonify(results)
         
         except Exception as e:
             app.logger.error(f"Error processing text with improved generator: {str(e)}")
             return jsonify({"error": "Failed to process text", "message": str(e)}), 500
-    
     # Authentication Endpoints
     @app.route('/auth/login', methods=["POST"])
     @app.route('/api/auth/login', methods=["POST"])  # Add alias for consistent API routing
@@ -419,49 +495,49 @@ def register_routes(app, bcrypt):
             "page": page
         }), 200
     
-    @app.route('/api/interaction', methods=['POST'])
-    @jwt_required()
-    def create_interaction():
-        """Create a new interaction record"""
-        if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 400
+    # @app.route('/api/interaction', methods=['POST'])
+    # @jwt_required()
+    # def create_interaction():
+    #     """Create a new interaction record"""
+    #     if not request.is_json:
+    #         return jsonify({"error": "Request must be JSON"}), 400
         
-        data = request.get_json()
+    #     data = request.get_json()
         
-        # Validate required fields
-        required_fields = ["user_id", "input_text", "response_text"]
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+    #     # Validate required fields
+    #     required_fields = ["user_id", "input_text", "response_text"]
+    #     for field in required_fields:
+    #         if field not in data:
+    #             return jsonify({"error": f"Missing required field: {field}"}), 400
         
-        # Verify user owns this interaction
-        identity = get_jwt_identity()
-        if identity['user_id'] != data["user_id"]:
-            return jsonify({"error": "Cannot create interaction for another user"}), 403
+    #     # Verify user owns this interaction
+    #     identity = get_jwt_identity()
+    #     if identity['user_id'] != data["user_id"]:
+    #         return jsonify({"error": "Cannot create interaction for another user"}), 403
         
-        user = User.query.get(data["user_id"])
-        if not user:
-            return jsonify({"error": "User not found"}), 404
+    #     user = User.query.get(data["user_id"])
+    #     if not user:
+    #         return jsonify({"error": "User not found"}), 404
         
-        # Create interaction
-        try:
-            new_interaction = Interaction(
-                user_id=data["user_id"],
-                input_text=data["input_text"],
-                response_text=data["response_text"]
-            )
-            db.session.add(new_interaction)
-            db.session.commit()
+    #     # Create interaction
+    #     try:
+    #         new_interaction = Interaction(
+    #             user_id=data["user_id"],
+    #             input_text=data["input_text"],
+    #             response_text=data["response_text"]
+    #         )
+    #         db.session.add(new_interaction)
+    #         db.session.commit()
             
-            return jsonify({
-                "message": "Interaction created successfully",
-                "id": new_interaction.id
-            }), 201
+    #         return jsonify({
+    #             "message": "Interaction created successfully",
+    #             "id": new_interaction.id
+    #         }), 201
         
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Error creating interaction: {str(e)}")
-            return jsonify({"error": "Failed to create interaction", "message": str(e)}), 500
+    #     except Exception as e:
+    #         db.session.rollback()
+    #         app.logger.error(f"Error creating interaction: {str(e)}")
+    #         return jsonify({"error": "Failed to create interaction", "message": str(e)}), 500
     
     # Additional protected route
     @app.route('/api/protected', methods=['GET'])
