@@ -50,8 +50,8 @@ ENV/
 *.db
 
 
-# IDE files
-*.idea/
+# IDE filess 
+*.idea/ 
 *.vscode/
 *.swp
 *.swo
