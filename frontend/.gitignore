@@ -34,3 +34,26 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Python backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+ENV/
+*.sqlite
+*.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Generated question data
+/data/generated/
