@@ -3,8 +3,9 @@ import torch
 import scipy.spatial.distance
 from sentence_transformers import SentenceTransformer
 import re
-from nltk.tokenize import sent_tokenize
+from nltk.tokenize import sent_tokenize, word_tokenize
 import spacy
+from qa_formatter import QAFormatter
 
 class ImprovedFalseStatementGenerator:
     def __init__(self, model_name="gpt2-medium", device=None):
@@ -40,7 +41,49 @@ class ImprovedFalseStatementGenerator:
         
         # Add date pattern matching
         self.date_pattern = re.compile(r'\b\d{4}\b|\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b')
+        
+        # Add patterns for news content
+        self.number_pattern = re.compile(r'\b\d+(?:\.\d+)?%?\b')
+        self.company_pattern = re.compile(r'\b(?:Tesla|SpaceX|Bitcoin|Dogecoin)\b')
+        
+        self.qa_formatter = QAFormatter()
     
+    def process_full_text(self, text):
+        """Process full text and generate false statements for key sentences."""
+        sentences = sent_tokenize(text)
+        results = []
+        
+        for sentence in sentences:
+            # Skip very short sentences or headers
+            if len(sentence.split()) < 5:
+                continue
+                
+            # Check if sentence contains key information (numbers, companies, quotes)
+            has_numbers = bool(self.number_pattern.search(sentence))
+            has_companies = bool(self.company_pattern.search(sentence))
+            
+            if has_numbers or has_companies:
+                # Generate partial sentence up to the key information
+                words = word_tokenize(sentence)
+                partial_idx = len(words) // 2
+                partial_sentence = ' '.join(words[:partial_idx])
+                
+                false_statements = self.generate_false_statements(
+                    partial_sentence,
+                    sentence,
+                    num_statements=3
+                )
+                
+                if false_statements:
+                    results.append({
+                        "original_sentence": sentence,
+                        "partial_sentence": partial_sentence,
+                        "false_sentences": false_statements,
+                        "generator_used": "gpt2"
+                    })
+        
+        return results
+
     def generate_false_statements(self, partial_sentence, full_sentence, num_statements=3, similarity_threshold=0.75):
         """
         Generate false statements based on a partial sentence.
@@ -60,6 +103,13 @@ class ImprovedFalseStatementGenerator:
         # Adjust parameters for date-containing sentences
         max_length = len(partial_sentence.split()) + (30 if has_date else 50)
         temperature = 0.8 if has_date else 0.9
+        
+        # Adjust parameters for news content
+        has_company = bool(self.company_pattern.search(partial_sentence))
+        has_number = bool(self.number_pattern.search(partial_sentence))
+        
+        max_length = len(partial_sentence.split()) + (40 if has_company or has_number else 50)
+        temperature = 0.85 if has_company or has_number else 0.9
         
         # Generate candidate sentences
         outputs = self.generator(
@@ -180,3 +230,22 @@ class ImprovedFalseStatementGenerator:
             false_statements = self.generate_false_statements(partial, full)
             results.append(false_statements)
         return results
+    
+    def generate_qa_from_text(self, text: str) -> str:
+        """Generate Q&A format from text."""
+        results = self.process_full_text(text)
+        questions = []
+        
+        for result in results:
+            # Create question from original sentence
+            question = f"What is the correct statement about {result['partial_sentence']}?"
+            
+            # Combine correct and false statements
+            choices = [result['original_sentence']] + result['false_sentences']
+            
+            questions.append({
+                "question": question,
+                "choices": choices
+            })
+        
+        return self.qa_formatter.format_qa(questions)
