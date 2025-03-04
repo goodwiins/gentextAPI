@@ -2,7 +2,7 @@ from transformers import GPT2Tokenizer, GPT2LMHeadModel, pipeline
 import torch
 import scipy.spatial.distance
 from sentence_transformers import SentenceTransformer
-import nltk
+
 from nltk.tokenize import sent_tokenize
 import spacy
 
@@ -10,7 +10,12 @@ class ImprovedFalseStatementGenerator:
     def __init__(self, model_name="gpt2-medium", device=None):
         # Initialize device (use GPU if available)
         if device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            if torch.backends.mps.is_available():
+                self.device = "mps"
+            elif torch.cuda.is_available():
+                self.device = "cuda"
+            else:
+                self.device = "cpu"
         else:
             self.device = device
             
@@ -27,7 +32,8 @@ class ImprovedFalseStatementGenerator:
         
         # Load BERT model for similarity calculation
         self.bert_model = SentenceTransformer('bert-base-nli-mean-tokens')
-        self.bert_model.to(self.device)
+        # Force BERT model to CPU as it might not be compatible with MPS
+        self.bert_model = self.bert_model.to("cpu")
         
         # Load spaCy for NLP tasks
         self.nlp = spacy.load('en_core_web_sm')

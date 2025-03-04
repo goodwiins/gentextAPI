@@ -1,7 +1,6 @@
 import os
 import json
-import re
-import string
+
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta
@@ -9,7 +8,6 @@ from datetime import timedelta
 from flask import Flask, request, jsonify, url_for, send_from_directory, current_app, g
 
 from flask_bcrypt import Bcrypt
-from flask_session import Session
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
@@ -39,7 +37,10 @@ def create_app(config_object=ApplicationConfig):
     app.config.from_object(config_object)
     
     # Ensure instance folder exists
-    os.makedirs(app.instance_path, exist_ok=True)
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+    except Exception as e:
+        print(f"Error creating instance path: {e}")
     
     # Configure file logging
     if not app.debug:
@@ -149,61 +150,10 @@ def register_routes(app, bcrypt):
             app.logger.error(f"Error processing text: {str(e)}")
             return jsonify({"error": "Failed to process text", "message": str(e)}), 500
     
-def register_routes(app, bcrypt):
-    """Register routes for the application"""
-    
-    # API Health Check
-    @app.route('/api/health', methods=['GET'])
-    def health_check():
-        return jsonify({"status": "ok", "message": "Service is running"}), 200
-    
-    # Text Processing Endpoints
-    @app.route('/api/process_text', methods=['POST'])
-    def process_text_endpoint():
-        """Process text to generate educational questions"""
-        if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 400
-        
-        data = request.get_json()
-        if 'text' not in data or not data['text'].strip():
-            return jsonify({"error": "Text field is required and cannot be empty"}), 400
-        
-        try:
-            # Track start time for performance monitoring
-            import time
-            start_time = time.time()
-            
-            # Process the text and generate questions
-            result = text_process.process_text(data['text'])
-            
-            # Log processing time for monitoring
-            processing_time = time.time() - start_time
-            app.logger.info(f"Text processed in {processing_time:.2f} seconds")
-            
-            # If authenticated, save the interaction
-            jwt_identity = get_jwt_identity() if request.headers.get('Authorization') else None
-            if jwt_identity:
-                try:
-                    interaction = Interaction(
-                        user_id=jwt_identity['user_id'],
-                        input_text=data['text'][:1000],  # Limit stored text size
-                        response_text=result[:1000] if isinstance(result, str) else json.dumps(result)[:1000]
-                    )
-                    db.session.add(interaction)
-                    db.session.commit()
-                except Exception as e:
-                    app.logger.error(f"Failed to save interaction: {str(e)}")
-            
-            return jsonify(json.loads(result) if isinstance(result, str) else result)
-        
-        except Exception as e:
-            app.logger.error(f"Error processing text: {str(e)}")
-            return jsonify({"error": "Failed to process text", "message": str(e)}), 500
-    
     # Enhanced Text Processing with Improved Generator
     @app.route('/api/v2/process_text', methods=['POST'])
-    def process_text_improved():
-        """Process text using the improved generator"""
+    def process_text_v3():
+        """Process text using the improved generator with model selection"""
         if not request.is_json:
             return jsonify({"error": "Request must be JSON"}), 400
         
@@ -211,39 +161,21 @@ def register_routes(app, bcrypt):
         if 'text' not in data or not data['text'].strip():
             return jsonify({"error": "Text field is required and cannot be empty"}), 400
         
+        # Get generator type from request or use default
+        generator_type = data.get('generator_type', 'gpt2')
+        
+        # Validate generator type
+        if generator_type not in ['gpt2', 't5']:
+            return jsonify({"error": f"Invalid generator type: {generator_type}. Supported types: gpt2, t5"}), 400
+        
         try:
-            # Extract candidate sentences
-            cand_sent = text_process.get_candidate_sents(data['text'])
-            filtered_sentences = text_process.preprocess(cand_sent)
-            
-            # Get partial sentences
-            sent_completion_dict = text_process.get_sentence_completions(filtered_sentences)
-            
-            # Generate false statements using the improved generator
-            results = []
-            for key_sentence in sent_completion_dict:
-                partial_sentences = sent_completion_dict[key_sentence]
-                false_sentences = []
-                
-                for partial_sent in partial_sentences:
-                    false_sents = generator.generate_false_statements(
-                        partial_sent, 
-                        key_sentence, 
-                        num_statements=3
-                    )
-                    false_sentences.extend(false_sents)
-                
-                temp = {
-                    "original_sentence": key_sentence,
-                    "partial_sentence": partial_sentences[0],
-                    "false_sentences": false_sentences
-                }
-                results.append(temp)
+            # Process the text with the specified generator
+            app.logger.info(f"Processing text with generator: {generator_type}")
+            result = text_process.process_text(data['text'], generator_type=generator_type)
             
             # Check for authentication token - handle JWT properly
             user_id = None
             try:
-            
                 # Optional verification - won't throw an exception if no token
                 verify_jwt_in_request(optional=True)
                 # Now safely get the identity if a token exists
@@ -266,7 +198,7 @@ def register_routes(app, bcrypt):
                         interaction = Interaction(
                             user_id=user_id,
                             input_text=data['text'][:2000],
-                            response_text=json.dumps(results)[:5000]
+                            response_text=result[:5000] if isinstance(result, str) else json.dumps(result)[:5000]
                         )
                         # Add and commit to database
                         db.session.add(interaction)
@@ -278,11 +210,12 @@ def register_routes(app, bcrypt):
             else:
                 app.logger.info("No authenticated user found, not saving interaction")
             
-            return jsonify(results)
+            return jsonify(json.loads(result) if isinstance(result, str) else result)
         
         except Exception as e:
-            app.logger.error(f"Error processing text with improved generator: {str(e)}")
-            return jsonify({"error": "Failed to process text", "message": str(e)}), 500
+            app.logger.error(f"Error processing text with generator {generator_type}: {str(e)}")
+            return jsonify({"error": f"Failed to process text with generator {generator_type}", "message": str(e)}), 500
+    
     # Authentication Endpoints
     @app.route('/auth/login', methods=["POST"])
     @app.route('/api/auth/login', methods=["POST"])  # Add alias for consistent API routing
@@ -538,7 +471,6 @@ def register_routes(app, bcrypt):
     #         db.session.rollback()
     #         app.logger.error(f"Error creating interaction: {str(e)}")
     #         return jsonify({"error": "Failed to create interaction", "message": str(e)}), 500
-    
     # Additional protected route
     @app.route('/api/protected', methods=['GET'])
     @jwt_required()
@@ -569,6 +501,10 @@ def register_routes(app, bcrypt):
 # Create the Flask app
 app = create_app()
 
-# Run the app if executed directly
+# Add this to help debug startup issues
 if __name__ == '__main__':
-    app.run(debug=app.config.get('DEBUG', False), host='0.0.0.0', port=8000)
+    print("Starting Flask application...")
+    try:
+        app.run(host='0.0.0.0', port=8000)
+    except Exception as e:
+        print(f"Error starting Flask app: {e}")
