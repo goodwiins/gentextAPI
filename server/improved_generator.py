@@ -38,7 +38,7 @@ class ImprovedFalseStatementGenerator:
         # Load spaCy for NLP tasks
         self.nlp = spacy.load('en_core_web_sm')
     
-    def generate_false_statements(self, partial_sentence, full_sentence, num_statements=3, similarity_threshold=0.85):
+    def generate_false_statements(self, partial_sentence, full_sentence, num_statements=3, similarity_threshold=0.75):
         """
         Generate false statements based on a partial sentence.
         
@@ -54,13 +54,13 @@ class ImprovedFalseStatementGenerator:
         # Generate candidate sentences
         outputs = self.generator(
             partial_sentence,
-            max_length=len(partial_sentence.split()) + 80,
-            num_return_sequences=10,
+            max_length=len(partial_sentence.split()) + 50,  # Reduced max length for more focused completions
+            num_return_sequences=15,  # Increased for more candidates
             do_sample=True,
-            top_p=0.92,
-            top_k=50,
-            temperature=1.0,
-            repetition_penalty=1.2,
+            top_p=0.85,  # Reduced for more focused outputs
+            top_k=40,
+            temperature=0.9,  # Slightly reduced for more coherent outputs
+            repetition_penalty=1.3,
             return_full_text=False
         )
         
@@ -70,7 +70,7 @@ class ImprovedFalseStatementGenerator:
         # Process and filter the generated sentences
         return self._filter_sentences(full_sentence, generated_sentences, similarity_threshold, num_statements)
     
-    def _filter_sentences(self, original_sentence, candidate_sentences, threshold=0.85, max_results=3):
+    def _filter_sentences(self, original_sentence, candidate_sentences, threshold=0.75, max_results=3):
         """
         Filter sentences based on multiple criteria:
         1. Semantic dissimilarity to original sentence
@@ -91,7 +91,11 @@ class ImprovedFalseStatementGenerator:
         for sent in candidate_sentences:
             sentences = sent_tokenize(sent)
             if sentences:
-                cleaned_candidates.append(sentences[0].strip())
+                # Ensure proper sentence termination
+                cleaned_sent = sentences[0].strip()
+                if not cleaned_sent.endswith(('.', '!', '?')):
+                    cleaned_sent += '.'
+                cleaned_candidates.append(cleaned_sent)
         
         # Filter out duplicates
         cleaned_candidates = list(set(cleaned_candidates))
@@ -110,22 +114,23 @@ class ImprovedFalseStatementGenerator:
         candidate_embeddings = embeddings[1:]
         
         for i, candidate in enumerate(cleaned_candidates):
-            # Skip very short sentences
-            if len(candidate.split()) < 5:
+            # Enhanced filtering criteria
+            if len(candidate.split()) < 5 or len(candidate.split()) > 20:
                 continue
                 
             # Check for grammatical validity
             doc = self.nlp(candidate)
             has_verb = any(token.pos_ == "VERB" for token in doc)
+            has_subject = any(token.dep_ == "nsubj" for token in doc)
             
-            if not has_verb:
+            if not (has_verb and has_subject):
                 continue
                 
             # Calculate similarity with original sentence
             similarity = 1 - scipy.spatial.distance.cosine(original_embedding, candidate_embeddings[i])
             
-            # Only accept sentences that are different enough
-            if similarity < threshold:
+            # Adjust similarity range for better relevance
+            if 0.3 < similarity < threshold:
                 filtered_candidates.append({
                     "text": candidate,
                     "similarity": similarity

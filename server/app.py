@@ -1,11 +1,14 @@
 import os
 import json
-
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta
 
 from flask import Flask, request, jsonify, url_for, send_from_directory, current_app, g
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_compress import Compress  # Add this import
+from marshmallow import Schema, fields, ValidationError
 
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -21,7 +24,7 @@ from model import db, User, Interaction
 from improved_generator import ImprovedFalseStatementGenerator
 import text_process
 
-# Initialize the improved generator
+# Initialize only GPT-2 generator
 generator = ImprovedFalseStatementGenerator(model_name="gpt2-medium")
 
 # Configure logging
@@ -30,6 +33,22 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+class TextProcessSchema(Schema):
+    text = fields.Str(required=True, validate=lambda x: len(x.strip()) > 0)
+
+class UserSchema(Schema):
+    email = fields.Email(required=True)
+    password = fields.Str(required=True, validate=lambda x: len(x) >= 8)
+    first_name = fields.Str()
+    last_name = fields.Str()
+
+# Create limiter as a global instance
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"  # Use memory storage for development
+)
 
 def create_app(config_object=ApplicationConfig):
     """Create and configure the Flask application"""
@@ -62,6 +81,19 @@ def create_app(config_object=ApplicationConfig):
     bcrypt = Bcrypt(app)
     CORS(app, origins=['http://localhost:3000'], supports_credentials=True)
     db.init_app(app)
+    
+    # Initialize limiter with the app
+    limiter.init_app(app)
+    
+    # Add request validation middleware
+    @app.before_request
+    def validate_json():
+        if request.method in ['POST', 'PUT'] and request.is_json:
+            if not request.get_json():
+                return jsonify({"error": "Invalid JSON"}), 400
+
+    # Add response compression
+    Compress(app)
     
     # Register error handlers
     register_error_handlers(app)
@@ -152,26 +184,19 @@ def register_routes(app, bcrypt):
     
     # Enhanced Text Processing with Improved Generator
     @app.route('/api/v2/process_text', methods=['POST'])
+    @limiter.limit("20 per minute")
     def process_text_v3():
-        """Process text using the improved generator with model selection"""
-        if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 400
-        
-        data = request.get_json()
-        if 'text' not in data or not data['text'].strip():
-            return jsonify({"error": "Text field is required and cannot be empty"}), 400
-        
-        # Get generator type from request or use default
-        generator_type = data.get('generator_type', 'gpt2')
-        
-        # Validate generator type
-        if generator_type not in ['gpt2', 't5']:
-            return jsonify({"error": f"Invalid generator type: {generator_type}. Supported types: gpt2, t5"}), 400
+        """Process text using GPT-2 generator"""
+        try:
+            schema = TextProcessSchema()
+            data = schema.load(request.get_json())
+        except ValidationError as err:
+            return jsonify({"error": "Validation error", "details": err.messages}), 400
         
         try:
-            # Process the text with the specified generator
-            app.logger.info(f"Processing text with generator: {generator_type}")
-            result = text_process.process_text(data['text'], generator_type=generator_type)
+            # Process the text with GPT-2
+            app.logger.info("Processing text with GPT-2 generator")
+            result = text_process.process_text(data['text'])
             
             # Check for authentication token - handle JWT properly
             user_id = None
@@ -257,16 +282,14 @@ def register_routes(app, bcrypt):
     
     @app.route('/auth/signup', methods=['POST'])
     @app.route('/api/auth/signup', methods=['POST'])  # Add alias for consistent API routing
+    @limiter.limit("5 per hour")
     def signup_user():
         """Register a new user"""
-        if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 400
-        
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data.get("email") or not data.get("password"):
-            return jsonify({"error": "Email and password are required"}), 400
+        try:
+            schema = UserSchema()
+            data = schema.load(request.get_json())
+        except ValidationError as err:
+            return jsonify({"error": "Validation error", "details": err.messages}), 400
         
         # Check if user already exists
         existing_user = User.query.filter_by(email=data["email"]).first()
@@ -497,6 +520,22 @@ def register_routes(app, bcrypt):
                 # Include other endpoints...
             ]
         }), 200
+
+    # Add request logging middleware
+    @app.after_request
+    def after_request(response):
+        if not request.path.startswith('/static'):
+            app.logger.info(f'{request.remote_addr} - "{request.method} {request.path}" {response.status_code}')
+        return response
+
+    # Add security headers middleware
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        return response
 
 # Create the Flask app
 app = create_app()
