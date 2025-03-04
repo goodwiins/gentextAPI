@@ -2,7 +2,7 @@ from transformers import GPT2Tokenizer, GPT2LMHeadModel, pipeline
 import torch
 import scipy.spatial.distance
 from sentence_transformers import SentenceTransformer
-
+import re
 from nltk.tokenize import sent_tokenize
 import spacy
 
@@ -37,6 +37,9 @@ class ImprovedFalseStatementGenerator:
         
         # Load spaCy for NLP tasks
         self.nlp = spacy.load('en_core_web_sm')
+        
+        # Add date pattern matching
+        self.date_pattern = re.compile(r'\b\d{4}\b|\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b')
     
     def generate_false_statements(self, partial_sentence, full_sentence, num_statements=3, similarity_threshold=0.75):
         """
@@ -51,15 +54,22 @@ class ImprovedFalseStatementGenerator:
         Returns:
             List of false statements
         """
+        # Check if sentence contains dates
+        has_date = bool(self.date_pattern.search(partial_sentence))
+        
+        # Adjust parameters for date-containing sentences
+        max_length = len(partial_sentence.split()) + (30 if has_date else 50)
+        temperature = 0.8 if has_date else 0.9
+        
         # Generate candidate sentences
         outputs = self.generator(
             partial_sentence,
-            max_length=len(partial_sentence.split()) + 50,  # Reduced max length for more focused completions
-            num_return_sequences=15,  # Increased for more candidates
+            max_length=max_length,
+            num_return_sequences=20,  # Increased for better filtering
             do_sample=True,
-            top_p=0.85,  # Reduced for more focused outputs
+            top_p=0.90,
             top_k=40,
-            temperature=0.9,  # Slightly reduced for more coherent outputs
+            temperature=temperature,
             repetition_penalty=1.3,
             return_full_text=False
         )
@@ -93,6 +103,18 @@ class ImprovedFalseStatementGenerator:
             if sentences:
                 # Ensure proper sentence termination
                 cleaned_sent = sentences[0].strip()
+                
+                # Skip if dates are clearly wrong (e.g., future dates)
+                date_matches = self.date_pattern.findall(cleaned_sent)
+                if date_matches:
+                    try:
+                        # Skip sentences with dates after 2000 for historical content
+                        years = [int(y) for y in re.findall(r'\b\d{4}\b', cleaned_sent)]
+                        if any(y > 2000 for y in years):
+                            continue
+                    except ValueError:
+                        pass
+                
                 if not cleaned_sent.endswith(('.', '!', '?')):
                     cleaned_sent += '.'
                 cleaned_candidates.append(cleaned_sent)
