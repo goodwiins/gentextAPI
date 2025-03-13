@@ -104,9 +104,10 @@ class ImprovedFalseStatementGenerator:
             0.9
         )
         
-        # Generate variations using GPT-2
+        # Generate variations using GPT-2 with truncation enabled
         outputs = self.generator(
             partial_sentence,
+            truncation=True,  # Added truncation strategy
             max_length=max_length,
             num_return_sequences=20,
             do_sample=True,
