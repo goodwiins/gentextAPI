@@ -140,110 +140,110 @@ def register_routes(app, bcrypt):
         return jsonify({"status": "ok", "message": "Service is running"}), 200
     
     # Text Processing Endpoints
-    @app.route('/api/process_text', methods=['POST'])
-    def process_text_endpoint():
-        """Process text to generate educational questions"""
-        if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 400
+    # @app.route('/api/process_text', methods=['POST'])
+    # def process_text_endpoint():
+    #     """Process text to generate educational questions"""
+    #     if not request.is_json:
+    #         return jsonify({"error": "Request must be JSON"}), 400
         
-        data = request.get_json()
-        if 'text' not in data or not data['text'].strip():
-            return jsonify({"error": "Text field is required and cannot be empty"}), 400
+    #     data = request.get_json()
+    #     if 'text' not in data or not data['text'].strip():
+    #         return jsonify({"error": "Text field is required and cannot be empty"}), 400
         
-        try:
-            # Track start time for performance monitoring
-            import time
-            start_time = time.time()
+    #     try:
+    #         # Track start time for performance monitoring
+    #         import time
+    #         start_time = time.time()
             
-            # Process the text and generate questions
-            result = text_process.process_text(data['text'])
+    #         # Process the text and generate questions
+    #         result = text_process.process_text(data['text'])
             
-            # Log processing time for monitoring
-            processing_time = time.time() - start_time
-            app.logger.info(f"Text processed in {processing_time:.2f} seconds")
+    #         # Log processing time for monitoring
+    #         processing_time = time.time() - start_time
+    #         app.logger.info(f"Text processed in {processing_time:.2f} seconds")
             
-            # If authenticated, save the interaction
-            jwt_identity = get_jwt_identity() if request.headers.get('Authorization') else None
-            if jwt_identity:
-                try:
-                    interaction = Interaction(
-                        user_id=jwt_identity['user_id'],
-                        input_text=data['text'][:1000],  # Limit stored text size
-                        response_text=result[:1000] if isinstance(result, str) else json.dumps(result)[:1000]
-                    )
-                    db.session.add(interaction)
-                    db.session.commit()
-                except Exception as e:
-                    app.logger.error(f"Failed to save interaction: {str(e)}")
+    #         # If authenticated, save the interaction
+    #         jwt_identity = get_jwt_identity() if request.headers.get('Authorization') else None
+    #         if jwt_identity:
+    #             try:
+    #                 interaction = Interaction(
+    #                     user_id=jwt_identity['user_id'],
+    #                     input_text=data['text'][:1000],  # Limit stored text size
+    #                     response_text=result[:1000] if isinstance(result, str) else json.dumps(result)[:1000]
+    #                 )
+    #                 db.session.add(interaction)
+    #                 db.session.commit()
+    #             except Exception as e:
+    #                 app.logger.error(f"Failed to save interaction: {str(e)}")
             
-            return jsonify(json.loads(result) if isinstance(result, str) else result)
+    #         return jsonify(json.loads(result) if isinstance(result, str) else result)
         
-        except Exception as e:
-            app.logger.error(f"Error processing text: {str(e)}")
-            return jsonify({"error": "Failed to process text", "message": str(e)}), 500
+    #     except Exception as e:
+    #         app.logger.error(f"Error processing text: {str(e)}")
+    #         return jsonify({"error": "Failed to process text", "message": str(e)}), 500
     
     # Enhanced Text Processing with Improved Generator
-    @app.route('/api/v2/process_text', methods=['POST'])
-    @limiter.limit("20 per minute")
-    def process_text_v3():
-        """Process text using GPT-2 generator"""
-        try:
-            schema = TextProcessSchema()
-            data = schema.load(request.get_json())
-        except ValidationError as err:
-            return jsonify({"error": "Validation error", "details": err.messages}), 400
+    # @app.route('/api/v2/process_text', methods=['POST'])
+    # @limiter.limit("20 per minute")
+    # def process_text_v3():
+    #     """Process text using GPT-2 generator"""
+    #     try:
+    #         schema = TextProcessSchema()
+    #         data = schema.load(request.get_json())
+    #     except ValidationError as err:
+    #         return jsonify({"error": "Validation error", "details": err.messages}), 400
         
-        try:
-            # Process the text with GPT-2
-            app.logger.info("Processing text with GPT-2 generator")
-            result = text_process.process_text(data['text'])
+    #     try:
+    #         # Process the text with GPT-2
+    #         app.logger.info("Processing text with GPT-2 generator")
+    #         result = text_process.process_text(data['text'])
             
-            # Check for authentication token - handle JWT properly
-            user_id = None
-            try:
-                # Optional verification - won't throw an exception if no token
-                verify_jwt_in_request(optional=True)
-                # Now safely get the identity if a token exists
-                jwt_identity = get_jwt_identity()
-                if jwt_identity:
-                    user_id = jwt_identity['user_id']
-                    app.logger.info(f"Found user_id in JWT: {user_id}")
-            except Exception as e:
-                app.logger.warning(f"JWT verification error: {str(e)}")
+    #         # Check for authentication token - handle JWT properly
+    #         user_id = None
+    #         try:
+    #             # Optional verification - won't throw an exception if no token
+    #             verify_jwt_in_request(optional=True)
+    #             # Now safely get the identity if a token exists
+    #             jwt_identity = get_jwt_identity()
+    #             if jwt_identity:
+    #                 user_id = jwt_identity['user_id']
+    #                 app.logger.info(f"Found user_id in JWT: {user_id}")
+    #         except Exception as e:
+    #             app.logger.warning(f"JWT verification error: {str(e)}")
             
-            # Try to save the interaction if we have a user ID
-            if user_id:
-                try:
-                    # Verify user exists
-                    user = User.query.get(user_id)
-                    if not user:
-                        app.logger.error(f"User with ID {user_id} not found in database")
-                    else:
-                        # Create a new interaction object
-                        interaction = Interaction(
-                            user_id=user_id,
-                            input_text=data['text'][:2000],
-                            response_text=result[:5000] if isinstance(result, str) else json.dumps(result)[:5000]
-                        )
-                        # Add and commit to database
-                        db.session.add(interaction)
-                        db.session.commit()
-                        app.logger.info(f"Successfully saved interaction for user {user_id}")
-                except Exception as e:
-                    db.session.rollback()
-                    app.logger.error(f"Database error saving interaction: {str(e)}")
-            else:
-                app.logger.info("No authenticated user found, not saving interaction")
+    #         # Try to save the interaction if we have a user ID
+    #         if user_id:
+    #             try:
+    #                 # Verify user exists
+    #                 user = User.query.get(user_id)
+    #                 if not user:
+    #                     app.logger.error(f"User with ID {user_id} not found in database")
+    #                 else:
+    #                     # Create a new interaction object
+    #                     interaction = Interaction(
+    #                         user_id=user_id,
+    #                         input_text=data['text'][:2000],
+    #                         response_text=result[:5000] if isinstance(result, str) else json.dumps(result)[:5000]
+    #                     )
+    #                     # Add and commit to database
+    #                     db.session.add(interaction)
+    #                     db.session.commit()
+    #                     app.logger.info(f"Successfully saved interaction for user {user_id}")
+    #             except Exception as e:
+    #                 db.session.rollback()
+    #                 app.logger.error(f"Database error saving interaction: {str(e)}")
+    #         else:
+    #             app.logger.info("No authenticated user found, not saving interaction")
             
-            return jsonify(json.loads(result) if isinstance(result, str) else result)
+    #         return jsonify(json.loads(result) if isinstance(result, str) else result)
         
-        except Exception as e:
-            app.logger.error(f"Error processing text with generator {generator_type}: {str(e)}")
-            return jsonify({"error": f"Failed to process text with generator {generator_type}", "message": str(e)}), 500
+    #     except Exception as e:
+    #         app.logger.error(f"Error processing text with generator {generator_type}: {str(e)}")
+    #         return jsonify({"error": f"Failed to process text with generator {generator_type}", "message": str(e)}), 500
     
     # Authentication Endpoints
-    @app.route('/auth/login', methods=["POST"])
-    @app.route('/api/auth/login', methods=["POST"])  # Add alias for consistent API routing
+    @app.route('/auth/login', methods=["POST", "OPTIONS"])
+    @app.route('/api/auth/login', methods=["POST", "OPTIONS"])  # Added OPTIONS
     def login_token():
         """Authenticate user and provide access token"""
         if not request.is_json:

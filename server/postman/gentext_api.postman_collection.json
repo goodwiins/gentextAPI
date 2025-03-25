@@ -1,0 +1,68 @@
+{
+  "info": {
+    "name": "GenText API",
+    "description": "Collection for testing the GenText API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Generate Statements",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/generate/statements",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["generate", "statements"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"partial_sentence\": \"Musk has shown again he can\",\n    \"full_sentence\": \"Musk has shown again he can influence the digital currency market with just his tweets.\",\n    \"num_statements\": 3\n}"
+        }
+      }
+    },
+    {
+      "name": "Generate Q&A",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/generate/qa",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["generate", "qa"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"text\": \"Musk has shown again he can influence the digital currency market with just his tweets. After saying that his electric vehicle-making company Tesla will not accept payments in Bitcoin because of environmental concerns, he tweeted that he was working with developers of Dogecoin to improve system transaction efficiency.\",\n    \"num_statements\": 3\n}"
+        }
+      }
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://127.0.0.1:8000/health",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["health"]
+        }
+      }
+    }
+  ]
+}
