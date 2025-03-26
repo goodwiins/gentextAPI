@@ -28,8 +28,8 @@ class BaseConfig:
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///dev.db'
-    SQLALCHEMY_ECHO = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///dev.db'  # SQLite database for development
+    SQLALCHEMY_ECHO = True  # SQL query logging enabled
 
 class ProductionConfig(BaseConfig):
     DEBUG = False
@@ -40,7 +40,7 @@ class ProductionConfig(BaseConfig):
 
 class TestingConfig(BaseConfig):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'  # In-memory SQLite for testing
 
 config = {
     'development': DevelopmentConfig,
