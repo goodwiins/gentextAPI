@@ -12,7 +12,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface ApiResponse {
-  questions: QuizQuestion[];
+  success: boolean;
+  data: {
+    questions: Array<{
+      question: string;
+      choices: string[];
+      correct_answer: number;
+    }>;
+    format_version: string;
+    total_questions: number;
+  };
   message?: string;
 }
 
@@ -66,13 +75,16 @@ const Home: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE_URL}/api/v2/process_text`, {
+      const response = await fetch(`${API_BASE_URL}/generate/qa`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authState.session?.$id}`
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ 
+          text,
+          num_statements: 5 // You can adjust this number as needed
+        }),
       });
 
       if (!response.ok) {
@@ -81,12 +93,39 @@ const Home: React.FC = () => {
       }
 
       const data: ApiResponse = await response.json();
-      setResponseData(data.questions);
-      setActiveSection('quiz');
-      toast.success('Questions generated successfully!');
       
-      // Smooth scroll to quiz section
-      quizSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Transform the QA response into the expected QuizQuestion format
+      if (data.success && data.data?.questions) {
+        const questions = data.data.questions.map((qa: { question: string; choices: string[]; correct_answer: number }) => {
+          // Extract the subject from the question text
+          const subjectMatch = qa.question.match(/about (.+?)\?/);
+          const subject = subjectMatch ? subjectMatch[1] : qa.question;
+          
+          // Clean up the choices by removing any newlines and extra spaces
+          const cleanChoices = qa.choices.map(choice => 
+            choice.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+          );
+
+          // Get the correct answer and false sentences
+          const correctAnswer = cleanChoices[qa.correct_answer];
+          const falseSentences = cleanChoices.filter((_, index) => index !== qa.correct_answer);
+
+          return {
+            original_sentence: correctAnswer,
+            partial_sentence: subject,
+            false_sentences: falseSentences
+          };
+        });
+        
+        setResponseData(questions);
+        setActiveSection('quiz');
+        toast.success(`Generated ${questions.length} questions successfully!`);
+        
+        // Smooth scroll to quiz section
+        quizSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
       console.error('Error processing text:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');

@@ -74,7 +74,7 @@ const QuizDisplay: React.FC<QuizDisplayProps> = ({
               Question {questionIndex + 1}
             </h2>
             <p className="text-gray-700 dark:text-gray-400 mb-6">
-              Complete this sentence correctly:
+              Select the correct statement about: <span className="font-semibold">{question.partial_sentence}</span>
             </p>
             <div className="space-y-4">
               <div className="flex items-center">
@@ -91,7 +91,7 @@ const QuizDisplay: React.FC<QuizDisplayProps> = ({
                   className="ml-2 text-gray-700 dark:text-gray-400 font-medium" 
                   htmlFor={`q${questionIndex}-correct`}
                 >
-                  {formatCorrectAnswer(question)}
+                  {question.original_sentence}
                 </label>
               </div>
               

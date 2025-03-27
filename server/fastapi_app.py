@@ -4,8 +4,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, constr
 from datetime import timedelta, datetime
 import uvicorn
-# from generator_factory import StatementGeneratorFactory
-# from improved_generator import ImprovedFalseStatementGenerator
+from generator_factory import StatementGeneratorFactory
+from improved_generator import ImprovedFalseStatementGenerator
 import nltk
 from nltk.tokenize import word_tokenize
 from fastapi.middleware.cors import CORSMiddleware  # Add CORS middleware
@@ -72,7 +72,7 @@ class UserResponse(BaseModel):
     last_name: str
 
 # Initialize the generator factory
-# generator_factory = StatementGeneratorFactory()
+generator_factory = StatementGeneratorFactory()
 
 # Example requests for documentation
 example_generate_request = {
@@ -136,40 +136,40 @@ async def generate_statements(request: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# @app.post("/generate/qa", response_model=QAResponse)
-# async def generate_qa(request: TextRequest):
-#     """
-#     Generate Q&A format from input text.
+@app.post("/generate/qa", response_model=QAResponse)
+async def generate_qa(request: TextRequest):
+    """
+    Generate Q&A format from input text.
     
-#     Example request:
-#     ```json
-#     {
-#         "text": "Musk has shown again he can influence the digital currency market...",
-#         "num_statements": 3
-#     }
-#     ```
-#     """
-#     try:
-#         generator = generator_factory.get_generator('gpt2')
-#         qa_output = generator.generate_qa_from_text(request.text)
+    Example request:
+    ```json
+    {
+        "text": "Musk has shown again he can influence the digital currency market...",
+        "num_statements": 3
+    }
+    ```
+    """
+    try:
+        generator = generator_factory.get_generator('gpt2')
+        qa_output = generator.generate_qa_from_text(request.text)
         
-#         # Format the response properly
-#         if isinstance(qa_output, str):
-#             # If the output is a string, wrap it in a dict with metadata
-#             formatted_output = {
-#                 "format": "qa",
-#                 "content": qa_output,
-#                 "generated_at": str(datetime.datetime.now())
-#             }
-#         else:
-#             formatted_output = qa_output
+        # Format the response properly
+        if isinstance(qa_output, str):
+            # If the output is a string, wrap it in a dict with metadata
+            formatted_output = {
+                "format": "qa",
+                "content": qa_output,
+                "generated_at": str(datetime.datetime.now())
+            }
+        else:
+            formatted_output = qa_output
             
-#         return {
-#             "success": True,
-#             "data": formatted_output
-#         }
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "success": True,
+            "data": formatted_output
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health_check():
