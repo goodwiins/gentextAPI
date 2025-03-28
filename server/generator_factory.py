@@ -150,15 +150,38 @@ class StatementGeneratorFactory:
             return [[] for _ in partial_sentences]
         
         try:
+            # Check if models are ready
+            if hasattr(generator, '_ensure_models_loaded'):
+                try:
+                    await generator._ensure_models_loaded()
+                except Exception as e:
+                    logger.error(f"Error ensuring models are loaded: {str(e)}", exc_info=True)
+            
             # Use the batch method if available on the generator
             if hasattr(generator, 'generate_statements_batch'):
-                loop = asyncio.get_event_loop()
-                return await loop.run_in_executor(
-                    self.executor,
-                    generator.generate_statements_batch,
-                    partial_sentences,
-                    full_sentences
-                )
+                try:
+                    # Start a task with timeout protection
+                    loop = asyncio.get_event_loop()
+                    batch_task = loop.run_in_executor(
+                        self.executor,
+                        generator.generate_statements_batch,
+                        partial_sentences,
+                        full_sentences,
+                        num_statements
+                    )
+                    
+                    # Apply timeout - 30 seconds per sentence, minimum 60 seconds
+                    timeout = max(60, len(partial_sentences) * 30)
+                    try:
+                        return await asyncio.wait_for(batch_task, timeout=timeout)
+                    except asyncio.TimeoutError:
+                        logger.error(f"Batch generation timed out after {timeout}s")
+                        # Return partial results if available, empty lists otherwise
+                        return [[] for _ in partial_sentences]
+                        
+                except Exception as e:
+                    logger.error(f"Error in batch executor: {str(e)}", exc_info=True)
+                    return [[] for _ in partial_sentences]
             
             # Otherwise process concurrently
             tasks = []
@@ -168,7 +191,19 @@ class StatementGeneratorFactory:
                 )
                 tasks.append(task)
             
-            return await asyncio.gather(*tasks)
+            # Use gather with return_exceptions to handle errors gracefully
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results, handling any exceptions
+            processed_results = []
+            for result in results:
+                if isinstance(result, Exception):
+                    logger.error(f"Error in batch item: {str(result)}")
+                    processed_results.append([])
+                else:
+                    processed_results.append(result)
+                    
+            return processed_results
             
         except Exception as e:
             logger.error(f"Error in batch generation: {str(e)}", exc_info=True)

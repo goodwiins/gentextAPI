@@ -13,6 +13,7 @@ import logging
 import asyncio
 import signal
 from starlette.exceptions import HTTPException as StarletteHTTPException
+import time
 
 # Configure logging
 logging.basicConfig(
@@ -183,7 +184,7 @@ async def generate_statements(request: GenerateRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate statements: {str(e)}")
 
 @app.post("/generate/batch", response_model=GenerateResponse)
-async def generate_batch(request: BatchGenerateRequest):
+async def generate_batch(request: BatchGenerateRequest, background_tasks: BackgroundTasks):
     """
     Generate false statements for multiple sentences in batch.
     
@@ -199,6 +200,10 @@ async def generate_batch(request: BatchGenerateRequest):
     ```
     """
     try:
+        # Generate a unique request ID for tracking
+        request_id = f"batch_{int(time.time())}_{len(request.sentences)}"
+        logger.info(f"Starting batch request {request_id} with {len(request.sentences)} sentences")
+        
         if not request.sentences:
             raise HTTPException(status_code=400, detail="At least one sentence is required")
             
@@ -218,6 +223,9 @@ async def generate_batch(request: BatchGenerateRequest):
             partial_idx = len(words) // 2
             partial_sentences.append(' '.join(words[:partial_idx]))
         
+        # Start timing
+        start_time = time.time()
+        
         # Use batch generation
         all_statements = await generator_factory.generate_batch_async(
             'gpt2',
@@ -225,6 +233,9 @@ async def generate_batch(request: BatchGenerateRequest):
             request.sentences,
             request.num_statements
         )
+        
+        # Calculate elapsed time
+        elapsed_time = time.time() - start_time
         
         # Format results
         for i, (sentence, partial, statements) in enumerate(zip(request.sentences, partial_sentences, all_statements)):
@@ -235,11 +246,21 @@ async def generate_batch(request: BatchGenerateRequest):
                 "index": i
             })
             
+        # Add background task for tracking and cleanup
+        background_tasks.add_task(
+            log_batch_completion,
+            request_id,
+            len(request.sentences),
+            elapsed_time
+        )
+            
         return {
             "success": True,
             "data": {
                 "results": results,
                 "count": len(results),
+                "request_id": request_id,
+                "elapsed_time_seconds": elapsed_time,
                 "timestamp": datetime.now().isoformat()
             }
         }
@@ -272,20 +293,30 @@ async def generate_qa(request: TextRequest, background_tasks: BackgroundTasks):
         if generator is None:
             raise HTTPException(status_code=503, detail="Generator not available")
             
-        # Generate Q&A asynchronously
+        # Option 1: Process asynchronously but wait for result
         qa_output = await generator.generate_qa_from_text_async(request.text)
+        
+        # Option 2: For very long texts, use background task for logging/cleanup
+        # This won't affect the response but helps with resource management
+        background_tasks.add_task(
+            log_qa_generation, 
+            request.text[:100] + "...",  # Log just the beginning for privacy
+            len(qa_output.get("questions", [])) if isinstance(qa_output, dict) else 0
+        )
         
         # Format the response properly
         if isinstance(qa_output, str):
             formatted_output = {
                 "format": "qa",
                 "content": qa_output,
-                "generated_at": datetime.now().isoformat()
+                "generated_at": datetime.now().isoformat(),
+                "processing_mode": "async"
             }
         else:
             formatted_output = qa_output
             if "generated_at" not in formatted_output:
                 formatted_output["generated_at"] = datetime.now().isoformat()
+            formatted_output["processing_mode"] = "async"
             
         return {
             "success": True,
@@ -296,6 +327,37 @@ async def generate_qa(request: TextRequest, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Error generating Q&A: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate Q&A: {str(e)}")
+
+# Helper function for background task
+async def log_qa_generation(text_preview: str, question_count: int):
+    """Log QA generation details for monitoring"""
+    try:
+        logger.info(f"Generated QA content with {question_count} questions for text starting with: {text_preview}")
+        
+        # Could add additional background cleanup here
+        # For example, clear caches after processing large texts
+        if question_count > 10:
+            # For large generations, hint the garbage collector
+            import gc
+            gc.collect()
+            
+    except Exception as e:
+        logger.error(f"Error in background logging task: {str(e)}", exc_info=True)
+
+# Helper function for batch monitoring
+async def log_batch_completion(request_id: str, sentence_count: int, elapsed_time: float):
+    """Log batch processing completion for monitoring"""
+    try:
+        logger.info(f"Completed batch request {request_id} with {sentence_count} sentences in {elapsed_time:.2f}s")
+        
+        # Trigger cleanup for large batches
+        if sentence_count > 10 or elapsed_time > 10:
+            # Hint the garbage collector for large/slow batches
+            import gc
+            gc.collect()
+            
+    except Exception as e:
+        logger.error(f"Error in batch logging task: {str(e)}", exc_info=True)
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -319,6 +381,14 @@ def start():
     except ImportError:
         pass
     
+    # Determine the best loop implementation
+    try:
+        import uvloop
+        loop_implementation = "uvloop"
+    except ImportError:
+        loop_implementation = "asyncio"
+        logger.warning("uvloop not available, falling back to asyncio")
+    
     # Start server with optimized settings
     uvicorn.run(
         "fastapi_app:app", 
@@ -327,7 +397,7 @@ def start():
         reload=DEBUG,
         workers=WORKERS,
         log_level="debug" if DEBUG else "info",
-        loop="uvloop" if not DEBUG else "asyncio"
+        loop=loop_implementation
     )
 
 if __name__ == "__main__":

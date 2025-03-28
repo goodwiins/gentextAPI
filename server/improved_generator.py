@@ -14,6 +14,7 @@ from functools import lru_cache
 from typing import List, Dict, Any, Optional, Union, Tuple
 import warnings
 from concurrent.futures import ThreadPoolExecutor
+import threading
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -35,6 +36,9 @@ class ImprovedFalseStatementGenerator:
         self.max_batch_size = max_batch_size
         self.timeout = timeout
         self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
+        self._loading = False
+        self._loading_complete = threading.Event()
+        self._loading_lock = threading.Lock()
         
         # Initialize device (use GPU if available)
         if device is None:
@@ -59,9 +63,13 @@ class ImprovedFalseStatementGenerator:
             self.nlp = None
             
             # Start async loading
+            self._loading = True
             asyncio.create_task(self._load_models_async())
         else:
+            self._loading = True
             self._load_models()
+            self._loading = False
+            self._loading_complete.set()
             
         # Add date pattern matching
         self.date_pattern = re.compile(r'\b\d{4}\b|\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\b')
@@ -74,9 +82,15 @@ class ImprovedFalseStatementGenerator:
 
     async def _load_models_async(self):
         """Load models asynchronously to avoid blocking the server startup"""
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(self._executor, self._load_models)
-        logger.info("Async model loading completed")
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(self._executor, self._load_models)
+            logger.info("Async model loading completed")
+        except Exception as e:
+            logger.error(f"Error in async model loading: {str(e)}", exc_info=True)
+        finally:
+            self._loading = False
+            self._loading_complete.set()
         
     def _load_models(self):
         """Load all required models with proper error handling"""
@@ -138,6 +152,38 @@ class ImprovedFalseStatementGenerator:
                 self.generator is not None and 
                 self.bert_model is not None and 
                 self.nlp is not None)
+    
+    async def _ensure_models_loaded(self) -> bool:
+        """Ensure models are loaded, waiting if needed"""
+        if self._is_ready():
+            return True
+            
+        if self._loading:
+            # If models are currently loading, wait for them to finish
+            logger.info("Waiting for models to finish loading...")
+            # Convert threading Event to asyncio compatible
+            for _ in range(30):  # Wait up to 30 seconds
+                if self._loading_complete.is_set():
+                    logger.info("Models finished loading")
+                    return self._is_ready()
+                await asyncio.sleep(1)
+            logger.warning("Timed out waiting for models to load")
+            
+        # If models haven't started loading or loading timed out, load synchronously
+        if not self._is_ready():
+            with self._loading_lock:
+                if not self._loading and not self._is_ready():
+                    self._loading = True
+                    try:
+                        logger.info("Models not loaded, loading synchronously")
+                        self._load_models()
+                        logger.info("Synchronous model loading completed")
+                        return True
+                    finally:
+                        self._loading = False
+                        self._loading_complete.set()
+        
+        return self._is_ready()
     
     def process_full_text(self, text: str) -> List[Dict[str, Any]]:
         """Break down text into processable chunks and generate false statements."""
@@ -393,12 +439,23 @@ class ImprovedFalseStatementGenerator:
             
         return results
     
+    async def generate_false_statements_async(self, partial_sentence: str, full_sentence: str, num_statements: int = 3) -> List[str]:
+        """Generate false statements asynchronously"""
+        await self._ensure_models_loaded()
+        
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            self._executor,
+            self.generate_false_statements,
+            partial_sentence,
+            full_sentence,
+            num_statements
+        )
+        
     async def generate_qa_from_text_async(self, text: str) -> Dict[str, Any]:
         """Generate Q&A format from text asynchronously."""
-        if not self._is_ready():
-            logger.warning("Models not fully loaded yet, waiting...")
-            self._load_models()
-            
+        await self._ensure_models_loaded()
+        
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self._executor, self.generate_qa_from_text, text)
     
