@@ -1,0 +1,21 @@
+{
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@types/testing-library__react": "^10.2.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^26.0.0",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.0.9"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.69.0",
+    "appwrite": "^17.0.1",
+    "axios": "^1.8.4"
+  }
+}

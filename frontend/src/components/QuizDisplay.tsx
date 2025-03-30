@@ -1,5 +1,15 @@
 // frontend/src/components/QuizDisplay.tsx
 import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  AlertCircle,
+  CheckCircle,
+  Check,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
 export interface QuizQuestion {
   original_sentence: string;
@@ -9,16 +19,17 @@ export interface QuizQuestion {
 
 interface QuizDisplayProps {
   questions: QuizQuestion[];
-  originalText?: string; // Make this optional
+  originalText?: string;
   onSubmit?: (answers: {[key: number]: string}) => void;
 }
 
 const QuizDisplay: React.FC<QuizDisplayProps> = ({ 
   questions, 
-  originalText = "", // Default value
+  originalText = "",
   onSubmit 
 }) => {
   const [selectedAnswers, setSelectedAnswers] = useState<{[key: number]: string}>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const handleAnswerSelection = (questionIndex: number, value: string) => {
     setSelectedAnswers(prev => ({
@@ -30,101 +41,152 @@ const QuizDisplay: React.FC<QuizDisplayProps> = ({
   const handleQuizSubmit = () => {
     if (onSubmit) {
       onSubmit(selectedAnswers);
-    } else {
-      console.log('Quiz answers submitted:', selectedAnswers);
     }
   };
 
-  // Function to format correct answers by replacing pronouns with subject names
-  const formatCorrectAnswer = (question: QuizQuestion): string => {
-    // First, check if originalText exists and is a non-empty string
-    if (!originalText || typeof originalText !== 'string' || originalText.trim() === '') {
-      return question.original_sentence; // Return the original sentence if originalText is missing
-    }
+  const progress = (Object.keys(selectedAnswers).length / questions.length) * 100;
+  const currentQuestion = questions[currentQuestionIndex];
+  const canSubmit = Object.keys(selectedAnswers).length === questions.length;
 
-    // Check if the original sentence starts with "It is" or similar pronouns
-    if (question.original_sentence.match(/^(It|This|That|They)\s+is/i)) {
-      try {
-        // Extract the subject name from the original text (in this case "My Sweet Charlie")
-        const subjectMatch = originalText.match(/^([^.!?]+?)(?=\s+is|\s+was|\s+has)/i);
-        
-        if (subjectMatch && subjectMatch[1]) {
-          const subject = subjectMatch[1].trim();
-          // Replace the pronoun with the proper subject
-          return question.original_sentence.replace(/^(It|This|That|They)\s+/i, `${subject} `);
-        }
-      } catch (error) {
-        console.error("Error formatting correct answer:", error);
-        // Fall back to the original sentence if there's an error
-        return question.original_sentence;
-      }
+  const handleNext = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
     }
-    
-    // Return the original sentence if no replacement was made
-    return question.original_sentence;
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+    }
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">Quiz Questions</h1>
-      <div className="grid grid-cols-1 gap-8 max-w-4xl mx-auto">
-        {questions.map((question, questionIndex) => (
-          <div key={questionIndex} className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-8">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-              Question {questionIndex + 1}
-            </h2>
-            <p className="text-gray-700 dark:text-gray-400 mb-6">
-              Complete this sentence correctly:
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <input
-                  className="h-4 w-4 text-green-500 focus:ring-green-500 border-gray-300 rounded"
-                  id={`q${questionIndex}-correct`}
-                  name={`question-${questionIndex}`}
-                  type="radio"
-                  value="correct"
-                  checked={selectedAnswers[questionIndex] === "correct"}
-                  onChange={() => handleAnswerSelection(questionIndex, "correct")}
-                />
-                <label 
-                  className="ml-2 text-gray-700 dark:text-gray-400 font-medium" 
-                  htmlFor={`q${questionIndex}-correct`}
-                >
-                  {formatCorrectAnswer(question)}
-                </label>
-              </div>
-              
-              {question.false_sentences && question.false_sentences.map((sentence, optionIndex) => (
-                <div className="flex items-center" key={optionIndex}>
-                  <input
-                    className="h-4 w-4 text-red-500 focus:ring-red-500 border-gray-300 rounded"
-                    id={`q${questionIndex}-option-${optionIndex}`}
-                    name={`question-${questionIndex}`}
-                    type="radio"
-                    value={`option-${optionIndex}`}
-                    checked={selectedAnswers[questionIndex] === `option-${optionIndex}`}
-                    onChange={() => handleAnswerSelection(questionIndex, `option-${optionIndex}`)}
-                  />
-                  <label 
-                    className="ml-2 text-gray-700 dark:text-gray-400 font-medium" 
-                    htmlFor={`q${questionIndex}-option-${optionIndex}`}
-                  >
-                    {sentence}
-                  </label>
-                </div>
-              ))}
+    <div className="w-full max-w-4xl mx-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="h-6 w-6 text-white" />
+              <h2 className="text-xl font-bold text-white">
+                Question {currentQuestionIndex + 1} of {questions.length}
+              </h2>
+            </div>
+            <div className="flex items-center space-x-2 text-white">
+              <CheckCircle className="h-5 w-5" />
+              <span>{Object.keys(selectedAnswers).length} of {questions.length} answered</span>
             </div>
           </div>
-        ))}
-        
-        <div className="flex justify-center mt-8">
-          <button 
-            className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 text-lg"
-            onClick={handleQuizSubmit}
-          >
-            Submit Quiz
-          </button>
+          <Progress value={progress} className="mt-4" />
+        </div>
+
+        {/* Question Content */}
+        <div className="p-8">
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              Select the correct statement about:
+            </h3>
+            <p className="mt-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
+              {currentQuestion.partial_sentence}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Correct Answer */}
+            <label className={`block relative rounded-lg border-2 p-4 cursor-pointer transition-all
+              ${selectedAnswers[currentQuestionIndex] === "correct" 
+                ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
+                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"}`}>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  className="sr-only"
+                  name={`question-${currentQuestionIndex}`}
+                  value="correct"
+                  checked={selectedAnswers[currentQuestionIndex] === "correct"}
+                  onChange={() => handleAnswerSelection(currentQuestionIndex, "correct")}
+                />
+                <div className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center
+                  ${selectedAnswers[currentQuestionIndex] === "correct"
+                    ? "border-green-500 bg-green-500"
+                    : "border-gray-300 dark:border-gray-600"}`}>
+                  {selectedAnswers[currentQuestionIndex] === "correct" && (
+                    <Check className="w-3 h-3 text-white" />
+                  )}
+                </div>
+                <span className="text-gray-900 dark:text-gray-100">
+                  {currentQuestion.original_sentence}
+                </span>
+              </div>
+            </label>
+
+            {/* False Answers */}
+            {currentQuestion.false_sentences.map((sentence, optionIndex) => (
+              <label key={optionIndex} className={`block relative rounded-lg border-2 p-4 cursor-pointer transition-all
+                ${selectedAnswers[currentQuestionIndex] === `option-${optionIndex}`
+                  ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                  : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"}`}>
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    className="sr-only"
+                    name={`question-${currentQuestionIndex}`}
+                    value={`option-${optionIndex}`}
+                    checked={selectedAnswers[currentQuestionIndex] === `option-${optionIndex}`}
+                    onChange={() => handleAnswerSelection(currentQuestionIndex, `option-${optionIndex}`)}
+                  />
+                  <div className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center
+                    ${selectedAnswers[currentQuestionIndex] === `option-${optionIndex}`
+                      ? "border-red-500 bg-red-500"
+                      : "border-gray-300 dark:border-gray-600"}`}>
+                    {selectedAnswers[currentQuestionIndex] === `option-${optionIndex}` && (
+                      <X className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {sentence}
+                  </span>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentQuestionIndex === 0}
+              className="flex items-center space-x-2"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Previous</span>
+            </Button>
+
+            <div className="flex items-center space-x-4">
+              {currentQuestionIndex === questions.length - 1 ? (
+                <Button
+                  onClick={handleQuizSubmit}
+                  disabled={!canSubmit}
+                  className="flex items-center space-x-2 bg-green-500 hover:bg-green-600"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Submit Quiz</span>
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleNext}
+                  disabled={!selectedAnswers[currentQuestionIndex]}
+                  className="flex items-center space-x-2"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

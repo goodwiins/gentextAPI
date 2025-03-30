@@ -1,8 +1,9 @@
 // frontend/src/pages/history.tsx
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useRouter } from "next/router";
-import { fetchUserId } from '../utils/auth';
+import { toast } from "react-hot-toast";
+import { useAuthContext } from "@/context/auth-context";
+import { Client, Databases, Query, Models } from "appwrite";
 
 import * as React from "react"
 import {
@@ -39,91 +40,103 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Icons } from "@/components/Icons"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-export interface Interaction {
-  id: number;
+// Initialize Appwrite
+const client = new Client()
+  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
+
+const databases = new Databases(client);
+
+export interface Interaction extends Models.Document {
   input_text: string;
   response_text: string;
-  timestamp: string;
+  created_at: string;
   user_id: string;
-}
-
-export interface ApiResponse {
-  interactions: Interaction[];
-  total: number;
-  pages: number;
-  page: number;
 }
 
 export default function History() {
   const router = useRouter();
+  const { authState } = useAuthContext();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
-  const [pagination, setPagination] = useState({
-    total: 0,
-    pages: 0,
-    page: 1
-  });
-  
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   
-  // Define the handlers that were missing
-  const handleEdit = (interaction: Interaction) => {
-    console.log("Editing interaction:", interaction);
-    // You can implement edit functionality here
-  };
-
-  const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this interaction?")) {
-      try {
-        // API call to delete (you need to implement the endpoint)
-        // await axios.delete(`http://127.0.0.1:8000/api/interaction/${id}`, {
-        //   headers: {
-        //     Authorization: `Bearer ${sessionStorage.getItem('token')}`
-        //   }
-        // });
-        
-        // For now, just remove it from local state
-        setInteractions(prev => prev.filter(item => item.id !== id));
-      } catch (error) {
-        console.error("Error deleting interaction:", error);
-      }
+  const handleDelete = async (id: string) => {
+    try {
+      setIsLoading(true);
+      await databases.deleteDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '',
+        process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_ID || '',
+        id
+      );
+      
+      setInteractions(prev => prev.filter(item => item.$id !== id));
+      toast.success('Interaction deleted successfully');
+    } catch (error) {
+      console.error("Error deleting interaction:", error);
+      toast.error('Failed to delete interaction');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Define columns with proper TypeScript typing
+  const handleView = (interaction: Interaction) => {
+    // Store the interaction data in session storage
+    sessionStorage.setItem('viewInteraction', JSON.stringify(interaction));
+    router.push(`/quiz?id=${interaction.$id}`);
+  };
+
   const interactionColumns: ColumnDef<Interaction>[] = [
     {
-      accessorKey: "id",
-      header: "ID",
-    },
-    {
       accessorKey: "input_text",
-      header: "Input Text",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-2"
+          >
+            Text Input
+            <Icons.Type className="h-4 w-4" />
+          </Button>
+        )
+      },
       cell: ({ row }) => (
-        <div className="truncate max-w-xs" title={row.getValue("input_text")}>
-          {row.getValue("input_text")}
+        <div className="max-w-[500px]">
+          <p className="truncate font-medium" title={row.getValue("input_text")}>
+            {row.getValue("input_text")}
+          </p>
         </div>
       ),
     },
     {
-      accessorKey: "response_text",
-      header: "Response Text",
+      accessorKey: "created_at",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-2"
+          >
+            Date
+            <Icons.Type className="h-4 w-4" />
+          </Button>
+        )
+      },
       cell: ({ row }) => (
-        <div className="truncate max-w-xs" title={row.getValue("response_text")}>
-          {row.getValue("response_text")}
+        <div className="font-medium">
+          {new Date(row.getValue("created_at")).toLocaleDateString()} 
+          <div className="text-sm text-muted-foreground">
+            {new Date(row.getValue("created_at")).toLocaleTimeString()}
+          </div>
         </div>
-      ),
-    },
-    {
-      accessorKey: "timestamp",
-      header: "Timestamp",
-      cell: ({ row }) => (
-        <div>{new Date(row.getValue("timestamp")).toLocaleString()}</div>
       ),
     },
     {
@@ -132,18 +145,31 @@ export default function History() {
       cell: ({ row }) => {
         const interaction = row.original;
         return (
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={() => handleEdit(interaction)}>
-              Edit
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleDelete(interaction.id)}>
-              Delete
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <Icons.Settings className="h-4 w-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleView(interaction)}>
+                <Icons.Type className="mr-2 h-4 w-4" />
+                View Quiz
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDelete(interaction.$id)}
+                className="text-red-600 dark:text-red-400"
+              >
+                <Icons.AlertCircle className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
-      enableSorting: false,
-      enableHiding: false,
     },
   ];
 
@@ -167,197 +193,192 @@ export default function History() {
   });
 
   useEffect(() => {
-    if (router.isReady) {
-      fetchUserInteractions();
+    if (!authState.isLoading && !authState.user) {
+      router.push("/login");
+      return;
     }
-  }, [router.isReady]);
 
-  const fetchUserInteractions = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const user_id = await fetchUserId();
-      
-      if (!user_id) {
-        router.push("/login");
-        return;
+    const fetchInteractions = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await databases.listDocuments(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_ID || '',
+          [
+            Query.equal('user_id', authState.user?.$id || ''),
+            Query.orderDesc('created_at'),
+            Query.limit(100)
+          ]
+        );
+
+        setInteractions(response.documents as Interaction[]);
+      } catch (error) {
+        console.error("Error fetching interactions:", error);
+        setError("Failed to load your interaction history");
+        toast.error("Failed to load history");
+      } finally {
+        setIsLoading(false);
       }
-      
-      const response = await axios.get<ApiResponse>(
-        `http://127.0.0.1:8000/api/user/${user_id}/interactions`, 
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('token')}`
-          }
-        }
-      );
-      
-      // Check if response has the expected structure
-      if (response.data && response.data.interactions) {
-        setInteractions(response.data.interactions);
-        setPagination({
-          total: response.data.total,
-          pages: response.data.pages,
-          page: response.data.page
-        });
-      } else {
-        // If the API returns a different structure, adapt accordingly
-        const data = response.data as unknown;
-        if (Array.isArray(data)) {
-          setInteractions(data as Interaction[]);
-        } else {
-          console.error("Unexpected API response format:", response.data);
-          setError("Unexpected data format received from the server");
-        }
-      }
-      
-    } catch (error) {
-      console.error("Error fetching user interactions:", error);
-      setError("Failed to load your interaction history. Please try again later.");
-    } finally {
-      setIsLoading(false);
+    };
+
+    if (authState.user) {
+      fetchInteractions();
     }
-  };
+  }, [authState, router]);
 
   return (
-    <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Your Interaction History</h1>
-      
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500"></div>
-          <p className="ml-4 text-lg">Loading your history...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      ) : interactions.length === 0 ? (
-        <div className="text-center py-10 bg-gray-50 rounded-lg">
-          <p className="text-lg text-gray-600">You don't have any interactions yet.</p>
-          <Button 
-            className="mt-4" 
-            onClick={() => router.push('/')}
-          >
-            Create Your First Quiz
-          </Button>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center py-4">
-            <Input
-              placeholder="Filter input text..."
-              value={(table.getColumn("input_text")?.getFilterValue() as string) ?? ""}
-              onChange={(event) =>
-                table.getColumn("input_text")?.setFilterValue(event.target.value)
-              }
-              className="max-w-sm"
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto">
-                  Columns <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
+    <div className="container mx-auto py-10 space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">History</h1>
+        <Button
+          variant="outline"
+          onClick={() => router.push('/')}
+          className="hidden md:flex"
+        >
+          <Icons.PlusCircle className="mr-2 h-4 w-4" />
+          New Quiz
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Quiz History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Icons.Loader className="h-8 w-8 animate-spin" />
+              <p className="ml-4 text-lg">Loading your history...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg" role="alert">
+              <p className="font-medium">{error}</p>
+            </div>
+          ) : interactions.length === 0 ? (
+            <div className="text-center py-10">
+              <Icons.Type className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">No quizzes yet</h3>
+              <p className="mt-2 text-muted-foreground">
+                Get started by creating your first quiz.
+              </p>
+              <Button 
+                className="mt-4" 
+                onClick={() => router.push('/')}
+              >
+                Create Quiz
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-4 py-4">
+                <Input
+                  placeholder="Filter by text..."
+                  value={(table.getColumn("input_text")?.getFilterValue() as string) ?? ""}
+                  onChange={(event) =>
+                    table.getColumn("input_text")?.setFilterValue(event.target.value)
+                  }
+                  className="max-w-sm"
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <Icons.Settings className="mr-2 h-4 w-4" />
+                      View
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-[150px]">
+                    {table
+                      .getAllColumns()
+                      .filter((column) => column.getCanHide())
+                      .map((column) => {
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={column.id}
+                            className="capitalize"
+                            checked={column.getIsVisible()}
+                            onCheckedChange={(value) =>
+                              column.toggleVisibility(!!value)
+                            }
+                          >
+                            {column.id}
+                          </DropdownMenuCheckboxItem>
+                        )
+                      })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          data-state={row.getIsSelected() && "selected"}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
                               )}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={interactionColumns.length}
+                          className="h-24 text-center"
+                        >
+                          No results found.
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={interactionColumns.length}
-                      className="h-24 text-center"
-                    >
-                      No results.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-end space-x-2 py-4">
-            <div className="flex-1 text-sm text-muted-foreground">
-              {table.getFilteredSelectedRowModel().rows.length} of{" "}
-              {table.getFilteredRowModel().rows.length} row(s) selected.
-            </div>
-            <div className="space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-end space-x-2 py-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  Next
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
