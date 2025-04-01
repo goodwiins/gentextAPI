@@ -1,0 +1,16 @@
+[Unit]
+Description=GenText API FastAPI Application
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/gentextAPI
+Environment="PATH=/var/www/gentextAPI/venv/bin"
+Environment="PYTHONPATH=/var/www/gentextAPI"
+ExecStart=/var/www/gentextAPI/venv/bin/python server/fastapi_app.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target 

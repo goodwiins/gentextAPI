@@ -66,4 +66,42 @@ if curl -s http://localhost:8000/health | grep -q "ok"; then
     echo "API documentation is available at http://YOUR_DROPLET_IP:8000/docs"
 else
     echo "Deployment might have issues. Please check the logs with: docker-compose logs"
-fi 
+fi
+
+# Install required packages
+echo "Installing required packages..."
+apt-get install -y python3-venv python3-pip nginx
+
+# Create and activate virtual environment
+echo "Creating and activating virtual environment..."
+cd /root/gentextAPI/server
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+echo "Installing Python dependencies..."
+pip install -r requirements.txt
+
+# Copy Nginx configuration
+echo "Copying Nginx configuration..."
+cp nginx.conf /etc/nginx/sites-available/gentext-api
+ln -s /etc/nginx/sites-available/gentext-api /etc/nginx/sites-enabled/
+rm /etc/nginx/sites-enabled/default  # Remove default Nginx site
+
+# Copy systemd service file
+echo "Copying systemd service file..."
+cp gentext-api.service /etc/systemd/system/
+
+# Reload systemd and start services
+echo "Reloading systemd and starting services..."
+systemctl daemon-reload
+systemctl enable gentext-api
+systemctl start gentext-api
+systemctl restart nginx
+
+# Check status
+echo "Checking service status..."
+systemctl status gentext-api
+systemctl status nginx
+
+echo "Deployment complete! The API should now be accessible via HTTP." 
