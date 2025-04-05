@@ -15,6 +15,8 @@ from typing import List, Dict, Any, Optional, Union, Tuple
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import sys
+import subprocess
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -101,50 +103,92 @@ class ImprovedFalseStatementGenerator:
             # Suppress non-critical warnings
             warnings.filterwarnings("ignore", category=UserWarning)
             
+            # Check system resources
+            logger.debug(f"CPU count: {os.cpu_count()}")
+            logger.debug(f"Using device: {self.device}")
+            
             # Load tokenizer with timeout guard
             start_time = time.time()
-            self.tokenizer = GPT2Tokenizer.from_pretrained(self.model_name)
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-            logger.info(f"Tokenizer loaded in {time.time() - start_time:.2f}s")
+            logger.debug(f"Loading tokenizer {self.model_name}...")
+            try:
+                self.tokenizer = GPT2Tokenizer.from_pretrained(self.model_name)
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+                logger.info(f"Tokenizer loaded in {time.time() - start_time:.2f}s")
+            except Exception as e:
+                logger.error(f"Failed to load tokenizer: {str(e)}")
+                raise RuntimeError(f"Failed to load tokenizer: {str(e)}")
             
             # Load model with timeout guard
             start_time = time.time()
-            self.model = GPT2LMHeadModel.from_pretrained(
-                self.model_name, 
-                pad_token_id=self.tokenizer.eos_token_id,
-                torchscript=True  # Enable torchscript for better performance
-            )
-            self.model.to(self.device)
-            logger.info(f"Model loaded in {time.time() - start_time:.2f}s")
+            logger.debug(f"Loading model {self.model_name}...")
+            try:
+                self.model = GPT2LMHeadModel.from_pretrained(
+                    self.model_name, 
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    torchscript=True  # Enable torchscript for better performance
+                )
+                self.model.to(self.device)
+                logger.info(f"Model loaded in {time.time() - start_time:.2f}s")
+            except Exception as e:
+                logger.error(f"Failed to load model: {str(e)}")
+                raise RuntimeError(f"Failed to load model: {str(e)}")
             
             # Initialize pipeline for text generation
             start_time = time.time()
-            device_idx = 0 if self.device == "cuda" else -1
-            self.generator = pipeline(
-                'text-generation', 
-                model=self.model, 
-                tokenizer=self.tokenizer, 
-                device=device_idx,
-                framework="pt"
-            )
-            logger.info(f"Generator pipeline created in {time.time() - start_time:.2f}s")
+            logger.debug("Creating generator pipeline...")
+            try:
+                device_idx = 0 if self.device == "cuda" else -1
+                self.generator = pipeline(
+                    'text-generation', 
+                    model=self.model, 
+                    tokenizer=self.tokenizer, 
+                    device=device_idx,
+                    framework="pt"
+                )
+                logger.info(f"Generator pipeline created in {time.time() - start_time:.2f}s")
+            except Exception as e:
+                logger.error(f"Failed to create generator pipeline: {str(e)}")
+                raise RuntimeError(f"Failed to create generator pipeline: {str(e)}")
             
             # Load BERT model for similarity calculation with reduced precision
             start_time = time.time()
-            self.bert_model = SentenceTransformer('bert-base-nli-mean-tokens')
-            # Force BERT model to CPU as it might not be compatible with MPS
-            self.bert_model = self.bert_model.to("cpu")
-            logger.info(f"BERT model loaded in {time.time() - start_time:.2f}s")
+            logger.debug("Loading BERT model...")
+            try:
+                self.bert_model = SentenceTransformer('bert-base-nli-mean-tokens')
+                # Force BERT model to CPU as it might not be compatible with MPS
+                self.bert_model = self.bert_model.to("cpu")
+                logger.info(f"BERT model loaded in {time.time() - start_time:.2f}s")
+            except Exception as e:
+                logger.error(f"Failed to load BERT model: {str(e)}")
+                raise RuntimeError(f"Failed to load BERT model: {str(e)}")
             
             # Load spaCy for NLP tasks
             start_time = time.time()
-            self.nlp = spacy.load('en_core_web_sm', disable=['ner', 'textcat'])
-            logger.info(f"SpaCy NLP loaded in {time.time() - start_time:.2f}s")
+            logger.debug("Loading spaCy model...")
+            try:
+                # Try to load, or download if needed
+                try:
+                    self.nlp = spacy.load('en_core_web_sm', disable=['ner', 'textcat'])
+                except OSError:
+                    logger.info("SpaCy model not found, attempting to download...")
+                    # If model isn't found, try to download it
+                    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], 
+                                  check=True, capture_output=True)
+                    self.nlp = spacy.load('en_core_web_sm', disable=['ner', 'textcat'])
+                logger.info(f"SpaCy NLP loaded in {time.time() - start_time:.2f}s")
+            except Exception as e:
+                logger.error(f"Failed to load spaCy model: {str(e)}")
+                raise RuntimeError(f"Failed to load spaCy model: {str(e)}")
             
         except Exception as e:
             logger.error(f"Error loading models: {str(e)}", exc_info=True)
+            import traceback
+            logger.error(f"Detailed traceback: {traceback.format_exc()}")
             raise RuntimeError(f"Failed to initialize generator: {str(e)}")
-            
+        
+        # Log success
+        logger.info(f"Successfully loaded all models for {self.model_name} on {self.device}")
+
     def _is_ready(self) -> bool:
         """Check if all models are loaded and ready"""
         return (self.tokenizer is not None and 

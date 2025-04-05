@@ -35,6 +35,13 @@ class StatementGeneratorFactory:
         # Initialize the GPT-2 generator
         try:
             logger.info("Initializing GPT-2 generator...")
+            # Print the model directory to help debug
+            cache_dir = os.path.expanduser("~/.cache/huggingface")
+            logger.debug(f"HuggingFace cache directory: {cache_dir}")
+            logger.debug(f"Cache directory exists: {os.path.exists(cache_dir)}")
+            if os.path.exists(cache_dir):
+                logger.debug(f"Cache contents: {os.listdir(cache_dir)}")
+                
             self.generators['gpt2'] = ImprovedFalseStatementGenerator(
                 model_name="gpt2-medium", 
                 device=os.getenv("MODEL_DEVICE", None)
@@ -43,6 +50,21 @@ class StatementGeneratorFactory:
                        self.generators['gpt2'].device)
         except Exception as e:
             logger.error(f"Failed to initialize GPT-2 generator: {str(e)}", exc_info=True)
+            # Print more details about the error
+            import traceback
+            logger.error(f"Detailed traceback: {traceback.format_exc()}")
+            logger.error(f"Error type: {type(e).__name__}")
+            # Try to initialize with a smaller model as fallback
+            try:
+                logger.info("Attempting fallback to smaller gpt2 model...")
+                self.generators['gpt2'] = ImprovedFalseStatementGenerator(
+                    model_name="gpt2", 
+                    device="cpu"
+                )
+                logger.info("Fallback to smaller model successful")
+            except Exception as e2:
+                logger.error(f"Fallback initialization also failed: {str(e2)}")
+                # We'll leave self.generators['gpt2'] unset
             
     @lru_cache(maxsize=32)
     def get_generator(self, generator_type: str = 'gpt2') -> Optional[ImprovedFalseStatementGenerator]:
