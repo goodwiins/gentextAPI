@@ -1,0 +1,84 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing and Coverage
+/coverage
+.nyc_output
+
+# Build outputs
+/.next/
+/out/
+/build
+/dist
+
+# Environment and Secrets
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+.vercel
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+*.sqlite
+*.db
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated content
+/data/generated/
+*.log
+*.csv
+*.dat
+*.out
+*.pid
+*.gz
+*.zip
+
+# API keys and secrets
+**/credentials.json
+**/token.json
+**/config.json
+**/secrets.*
+
+# Temporary files
+tmp/
+temp/
+.cache/
