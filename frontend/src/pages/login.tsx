@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,33 +20,47 @@ import { useAuthContext } from "@/context/auth-context";
 
 export default function Login() {
   const router = useRouter();
-  const { login } = useAuthContext();
+  const { login, authState, clearAuthError } = useAuthContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  // Clear auth errors when component unmounts or when inputs change
+  useEffect(() => {
+    clearAuthError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, password]);
+
+  // Check for redirects if user is already logged in
+  useEffect(() => {
+    // Only redirect if we've finished loading and user exists
+    if (!authState.isLoading && authState.user) {
+      router.push('/');
+    }
+  }, [authState.isLoading, authState.user, router]);
 
   const validateForm = () => {
     if (!email.trim()) {
-      toast.error('Please enter your email');
+      setLocalError('Please enter your email');
       return false;
     }
     if (!password.trim()) {
-      toast.error('Please enter your password');
+      setLocalError('Please enter your password');
       return false;
     }
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      toast.error('Please enter a valid email address');
+      setLocalError('Please enter a valid email address');
       return false;
     }
+    setLocalError(null);
     return true;
   };
 
   const handleCleanupSessions = async () => {
     try {
       setIsCleaningUp(true);
-      setError(null);
+      setLocalError(null);
       
       toast.loading('Cleaning up sessions...');
       
@@ -55,7 +69,7 @@ export default function Login() {
       toast.dismiss();
       if (result) {
         toast.success('Sessions cleaned up successfully!');
-        setError(null);
+        setLocalError(null);
       } else {
         toast.success('No active sessions found to clean up');
       }
@@ -65,6 +79,7 @@ export default function Login() {
       
       toast.dismiss();
       toast.error(errorMessage);
+      setLocalError(errorMessage);
     } finally {
       setIsCleaningUp(false);
     }
@@ -75,18 +90,17 @@ export default function Login() {
     
     if (!validateForm()) return;
 
+    // Clear any previous errors
+    setLocalError(null);
+    
     try {
-      setIsLoading(true);
-      setError(null);
-
+      // Login is handled by the auth context, which will set loading state internally
       await login(email, password);
       
       toast.success('Successfully logged in!');
       router.push('/');
-      router.refresh();
     } catch (error: any) {
       console.error("Error during login:", error);
-      let errorMessage = error.message || 'Failed to login';
       
       if (error.message?.includes('Please complete your profile')) {
         toast.success('Logged in successfully!');
@@ -95,20 +109,21 @@ export default function Login() {
       }
       
       if (error.message?.includes('Creation of a session is prohibited when a session is active')) {
-        errorMessage = 'You already have an active session. Please use the "Fix Session Issues" button below.';
+        setLocalError('You already have an active session. Please use the "Fix Session Issues" button below.');
+      } else {
+        // Use error from auth state or fallback to local error
+        setLocalError(authState.error || error.message || 'Failed to login');
       }
       
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
+      if (localError) {
+        toast.error(localError);
+      }
     }
   };
 
   const handleGoogleLogin = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      setLocalError(null);
       
       await appwriteAuth.createOAuth2Session('google');
     } catch (error: any) {
@@ -123,15 +138,17 @@ export default function Login() {
         errorMessage = 'You already have an active session. Please use the "Fix Session Issues" button below.';
       }
       
-      setError(errorMessage);
+      setLocalError(errorMessage);
       toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
     }
   };
 
+  // Display the error from auth context or local error
+  const displayError = authState.error || localError;
+  const isLoading = authState.isLoading;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
@@ -140,12 +157,12 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {displayError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{displayError}</AlertDescription>
               </Alert>
             )}
             
@@ -191,22 +208,24 @@ export default function Login() {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full"
-              disabled={isLoading || isCleaningUp}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </Button>
+            <div className="pt-2">
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isLoading || isCleaningUp}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign in'
+                )}
+              </Button>
+            </div>
             
-            {error && error.includes('session') && (
+            {displayError && displayError.includes('session') && (
               <Button 
                 type="button" 
                 variant="outline" 
@@ -229,7 +248,7 @@ export default function Login() {
             )}
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
+        <CardFooter className="flex flex-col space-y-6">
           <div className="relative w-full">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200 dark:border-gray-700" />
@@ -243,7 +262,7 @@ export default function Login() {
           <Button 
             variant="outline" 
             className="w-full" 
-            disabled={isLoading}
+            disabled={isLoading || isCleaningUp}
             onClick={handleGoogleLogin}
           >
             Continue with Google
