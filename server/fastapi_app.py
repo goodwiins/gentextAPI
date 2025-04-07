@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Environment variables for configuration
 HOST = os.getenv("API_HOST", "0.0.0.0")  # Default to all interfaces for production
 PORT = int(os.getenv("API_PORT", "8000"))
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://167.71.90.100:3000,http://167.71.90.100").split(",")
 WORKERS = int(os.getenv("API_WORKERS", "1"))
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 MAX_WORKERS = int(os.getenv("MAX_THREAD_WORKERS", os.cpu_count() or 4))
@@ -301,22 +301,35 @@ async def generate_qa(request: TextRequest, background_tasks: BackgroundTasks):
     ```
     """
     try:
+        # Log the incoming request for debugging
+        logger.debug(f"Received request with text length: {len(request.text)}")
+        logger.debug(f"Number of statements requested: {request.num_statements}")
+        
         # Validate input
         if not request.text or len(request.text) < 10:
+            logger.warning(f"Text too short: {len(request.text)} characters")
             raise HTTPException(status_code=400, detail="Text is too short")
             
         # Try to get Claude generator first
         generator = generator_factory.get_generator('claude')
         if generator is None:
+            logger.warning("Claude generator not available, falling back to GPT-2")
             # Fallback to GPT-2 if Claude is not available
             generator = generator_factory.get_generator('gpt2')
             if generator is None:
+                logger.error("No generators available")
                 raise HTTPException(status_code=503, detail="No generators available")
             
         # Generate Q&A pairs
+        logger.info(f"Generating Q&A with {generator.__class__.__name__}")
         start_time = time.time()
         qa_output = await generator.generate_qa_from_text_async(request.text, request.num_statements)
         generation_time = time.time() - start_time
+        
+        # Log the output for debugging
+        logger.debug(f"Generated {len(qa_output) if isinstance(qa_output, list) else 0} questions in {generation_time:.2f}s")
+        if isinstance(qa_output, list) and qa_output:
+            logger.debug(f"First question sample: {qa_output[0] if qa_output else 'None'}")
         
         # Log the request in background
         background_tasks.add_task(
@@ -326,26 +339,54 @@ async def generate_qa(request: TextRequest, background_tasks: BackgroundTasks):
             generation_time
         )
         
+        # Ensure the output is a proper list
+        if qa_output is None:
+            qa_output = []
+        elif not isinstance(qa_output, list):
+            logger.warning(f"Unexpected qa_output type: {type(qa_output)}")
+            qa_output = [qa_output] if qa_output else []
+            
+        # Validate each item in the output
+        validated_output = []
+        for item in qa_output:
+            # Ensure each item has the expected structure
+            if isinstance(item, dict) and all(key in item for key in ['original_sentence', 'partial_sentence', 'false_sentences']):
+                # Ensure false_sentences is a list
+                if not isinstance(item['false_sentences'], list):
+                    item['false_sentences'] = []
+                validated_output.append(item)
+            else:
+                logger.warning(f"Skipping invalid item: {item}")
+        
         # Format the response
-        if isinstance(qa_output, list) and qa_output:
-            # Return the questions in the standard format
-            return {
-                "success": True,
-                "data": qa_output,
-                "generator_used": "claude" if generator.__class__.__name__ == "ClaudeFalseStatementGenerator" else "gpt2",
-                "generation_time": generation_time
-            }
-        else:
-            # Handle empty response
-            return {
-                "success": True,
-                "data": [],
-                "generator_used": "claude" if generator.__class__.__name__ == "ClaudeFalseStatementGenerator" else "gpt2",
-                "generation_time": generation_time,
-                "message": "No questions were generated. The text might be too short or not suitable for Q&A generation."
-            }
+        response_data = {
+            "success": True,
+            "data": validated_output,
+            "generator_used": "claude" if generator.__class__.__name__ == "ClaudeFalseStatementGenerator" else "gpt2",
+            "generation_time": generation_time,
+            "message": None  # Explicitly set to None
+        }
+        
+        # If the output is empty, add a message
+        if not validated_output:
+            logger.warning("Generated empty Q&A output")
+            response_data["message"] = "No questions were generated. The text might be too short or not suitable for Q&A generation."
+            
+        logger.info(f"Returning response with {len(response_data['data'])} questions")
+        
+        # Print the exact response being returned
+        import json
+        logger.debug(f"Response JSON: {json.dumps(response_data)}")
+        
+        # Return with explicit content type
+        return JSONResponse(
+            content=response_data,
+            status_code=200,
+            headers={"Content-Type": "application/json"}
+        )
             
     except HTTPException as e:
+        logger.error(f"HTTP exception in generate_qa: {e.detail}")
         raise e
     except Exception as e:
         logger.error(f"Error generating Q&A: {str(e)}", exc_info=True)
@@ -394,6 +435,116 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "models_loaded": models_loaded
     }
+
+@app.get("/test/qa", response_model=QAResponse)
+async def test_qa_response():
+    """
+    Test endpoint that returns a hardcoded response matching the expected format.
+    Use this to verify frontend parsing works correctly.
+    """
+    logger.info("Test QA endpoint called")
+    
+    # Return the exact format that should work with the frontend
+    response_data = {
+        "success": True,
+        "data": [
+            {
+                "original_sentence": "Lamont Johnson",
+                "partial_sentence": "Who directed the film 'My Sweet Charlie'?",
+                "false_sentences": [
+                    "Richard Levinson",
+                    "David Westheimer"
+                ]
+            },
+            {
+                "original_sentence": "January 20, 1970",
+                "partial_sentence": "When was 'My Sweet Charlie' first broadcast?",
+                "false_sentences": [
+                    "December 15, 1970",
+                    "March 8, 1970"
+                ]
+            },
+            {
+                "original_sentence": "David Westheimer",
+                "partial_sentence": "Who wrote the novel that 'My Sweet Charlie' was based on?",
+                "false_sentences": [
+                    "William Link",
+                    "Lamont Johnson"
+                ]
+            },
+            {
+                "original_sentence": "Port Bolivar, Texas",
+                "partial_sentence": "Where was 'My Sweet Charlie' filmed?",
+                "false_sentences": [
+                    "Port Arthur, Texas",
+                    "Galveston, Texas"
+                ]
+            },
+            {
+                "original_sentence": "Universal Television",
+                "partial_sentence": "Which company produced 'My Sweet Charlie'?",
+                "false_sentences": [
+                    "NBC Productions",
+                    "Paramount Television"
+                ]
+            }
+        ],
+        "generator_used": "claude",
+        "generation_time": 5.985682725906372,
+        "message": None
+    }
+    
+    # Return with explicit content type
+    return JSONResponse(
+        content=response_data,
+        status_code=200,
+        headers={"Content-Type": "application/json"}
+    )
+
+@app.get("/generate/simple-qa")
+async def simple_qa():
+    """
+    Simple endpoint that returns a hardcoded response for testing.
+    This is a GET endpoint with no parameters.
+    """
+    logger.info("Simple QA endpoint called")
+    
+    # Return the exact format that should work with the frontend
+    response_data = {
+        "success": True,
+        "data": [
+            {
+                "original_sentence": "Lamont Johnson",
+                "partial_sentence": "Who directed the film 'My Sweet Charlie'?",
+                "false_sentences": [
+                    "Richard Levinson",
+                    "David Westheimer"
+                ]
+            },
+            {
+                "original_sentence": "January 20, 1970",
+                "partial_sentence": "When was 'My Sweet Charlie' first broadcast?",
+                "false_sentences": [
+                    "December 15, 1970",
+                    "March 8, 1970"
+                ]
+            },
+            {
+                "original_sentence": "David Westheimer",
+                "partial_sentence": "Who wrote the novel that 'My Sweet Charlie' was based on?",
+                "false_sentences": [
+                    "William Link",
+                    "Lamont Johnson"
+                ]
+            }
+        ],
+        "generator_used": "test",
+        "generation_time": 0.1,
+        "message": None
+    }
+    
+    # Return directly as a dictionary, without JSONResponse
+    return response_data
 
 def start():
     """Function to start the server programmatically"""

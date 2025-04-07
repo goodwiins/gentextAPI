@@ -9,7 +9,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { AlertCircle, Loader2, Mail, Lock } from "lucide-react";
+import { AlertCircle, Loader2, Mail, Lock, RefreshCcw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -42,6 +43,33 @@ export default function Login() {
     return true;
   };
 
+  const handleCleanupSessions = async () => {
+    try {
+      setIsCleaningUp(true);
+      setError(null);
+      
+      toast.loading('Cleaning up sessions...');
+      
+      const result = await appwriteAuth.cleanupSessions();
+      
+      toast.dismiss();
+      if (result) {
+        toast.success('Sessions cleaned up successfully!');
+        setError(null);
+      } else {
+        toast.success('No active sessions found to clean up');
+      }
+    } catch (error: any) {
+      console.error("Error during session cleanup:", error);
+      let errorMessage = error.message || 'Failed to clean up sessions';
+      
+      toast.dismiss();
+      toast.error(errorMessage);
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
@@ -55,15 +83,19 @@ export default function Login() {
       
       toast.success('Successfully logged in!');
       router.push('/');
-      router.refresh(); // Refresh the page to update auth state
+      router.refresh();
     } catch (error: any) {
       console.error("Error during login:", error);
       let errorMessage = error.message || 'Failed to login';
       
       if (error.message?.includes('Please complete your profile')) {
         toast.success('Logged in successfully!');
-        router.push('/complete-profile'); // Redirect to profile completion
+        router.push('/complete-profile');
         return;
+      }
+      
+      if (error.message?.includes('Creation of a session is prohibited when a session is active')) {
+        errorMessage = 'You already have an active session. Please use the "Fix Session Issues" button below.';
       }
       
       setError(errorMessage);
@@ -87,6 +119,8 @@ export default function Login() {
         errorMessage = 'Too many login attempts. Please try again later.';
       } else if (error.message?.includes('Session creation failed')) {
         errorMessage = 'Failed to create Google login session. Please try again.';
+      } else if (error.message?.includes('Creation of a session is prohibited when a session is active')) {
+        errorMessage = 'You already have an active session. Please use the "Fix Session Issues" button below.';
       }
       
       setError(errorMessage);
@@ -126,7 +160,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
-                  disabled={isLoading}
+                  disabled={isLoading || isCleaningUp}
                   required
                 />
               </div>
@@ -151,7 +185,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-9"
-                  disabled={isLoading}
+                  disabled={isLoading || isCleaningUp}
                   required
                 />
               </div>
@@ -160,7 +194,7 @@ export default function Login() {
             <Button 
               type="submit" 
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || isCleaningUp}
             >
               {isLoading ? (
                 <>
@@ -171,6 +205,28 @@ export default function Login() {
                 'Sign in'
               )}
             </Button>
+            
+            {error && error.includes('session') && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full mt-2 border-orange-300 text-orange-600 hover:bg-orange-50"
+                onClick={handleCleanupSessions}
+                disabled={isLoading || isCleaningUp}
+              >
+                {isCleaningUp ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Fixing session issues...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Fix Session Issues
+                  </>
+                )}
+              </Button>
+            )}
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
