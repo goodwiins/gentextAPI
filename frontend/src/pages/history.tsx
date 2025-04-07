@@ -43,18 +43,33 @@ import {
 import { Icons } from "@/components/Icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-// Initialize Appwrite
-const client = new Client()
-  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
+// Environment variables with fallbacks
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
+const APPWRITE_DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '';
+const APPWRITE_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_ID || '';
 
-const databases = new Databases(client);
+// Initialize Appwrite with proper error handling
+let client: Client;
+let databases: Databases;
+
+try {
+  client = new Client()
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID);
+  
+  databases = new Databases(client);
+} catch (error) {
+  console.error('Failed to initialize Appwrite client:', error);
+  // Will be handled in the component
+}
 
 export interface Interaction extends Models.Document {
-  input_text: string;
-  response_text: string;
-  created_at: string;
-  user_id: string;
+  text: string;
+  title: string;
+  createdAt: string;
+  userId: string;
+  questions: string;
 }
 
 export default function History() {
@@ -68,34 +83,44 @@ export default function History() {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   
+  // Check for missing configuration
+  useEffect(() => {
+    if (!APPWRITE_PROJECT_ID || !APPWRITE_DATABASE_ID || !APPWRITE_COLLECTION_ID) {
+      setError("Missing Appwrite configuration. Please check your environment variables.");
+      setIsLoading(false);
+    }
+  }, []);
+  
   const handleDelete = async (id: string) => {
     try {
+      if (!databases || !APPWRITE_DATABASE_ID || !APPWRITE_COLLECTION_ID) {
+        throw new Error("Appwrite not properly configured");
+      }
+
       setIsLoading(true);
       await databases.deleteDocument(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_ID || '',
+        APPWRITE_DATABASE_ID,
+        APPWRITE_COLLECTION_ID,
         id
       );
       
       setInteractions(prev => prev.filter(item => item.$id !== id));
-      toast.success('Interaction deleted successfully');
+      toast.success('Quiz deleted successfully');
     } catch (error) {
-      console.error("Error deleting interaction:", error);
-      toast.error('Failed to delete interaction');
+      console.error("Error deleting quiz:", error);
+      toast.error('Failed to delete quiz');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleView = (interaction: Interaction) => {
-    // Store the interaction data in session storage
-    sessionStorage.setItem('viewInteraction', JSON.stringify(interaction));
-    router.push(`/quiz?id=${interaction.$id}`);
+    router.push(`/quiz/${interaction.$id}`);
   };
 
   const interactionColumns: ColumnDef<Interaction>[] = [
     {
-      accessorKey: "input_text",
+      accessorKey: "text",
       header: ({ column }) => {
         return (
           <Button
@@ -110,14 +135,14 @@ export default function History() {
       },
       cell: ({ row }) => (
         <div className="max-w-[500px]">
-          <p className="truncate font-medium" title={row.getValue("input_text")}>
-            {row.getValue("input_text")}
+          <p className="truncate font-medium" title={row.getValue("text")}>
+            {row.getValue("text")}
           </p>
         </div>
       ),
     },
     {
-      accessorKey: "created_at",
+      accessorKey: "createdAt",
       header: ({ column }) => {
         return (
           <Button
@@ -132,9 +157,9 @@ export default function History() {
       },
       cell: ({ row }) => (
         <div className="font-medium">
-          {new Date(row.getValue("created_at")).toLocaleDateString()} 
+          {new Date(row.getValue("createdAt")).toLocaleDateString()} 
           <div className="text-sm text-muted-foreground">
-            {new Date(row.getValue("created_at")).toLocaleTimeString()}
+            {new Date(row.getValue("createdAt")).toLocaleTimeString()}
           </div>
         </div>
       ),
@@ -200,23 +225,31 @@ export default function History() {
 
     const fetchInteractions = async () => {
       try {
+        if (!databases || !APPWRITE_DATABASE_ID || !APPWRITE_COLLECTION_ID) {
+          throw new Error("Appwrite not properly configured");
+        }
+
         setIsLoading(true);
         setError(null);
 
         const response = await databases.listDocuments(
-          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '',
-          process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_ID || '',
+          APPWRITE_DATABASE_ID,
+          APPWRITE_COLLECTION_ID,
           [
-            Query.equal('user_id', authState.user?.$id || ''),
-            Query.orderDesc('created_at'),
+            Query.equal('userId', authState.user?.$id || ''),
+            Query.orderDesc('createdAt'),
             Query.limit(100)
           ]
         );
 
+        if (response.documents.length === 0) {
+          console.log('No documents found for this user');
+        }
+        
         setInteractions(response.documents as Interaction[]);
       } catch (error) {
-        console.error("Error fetching interactions:", error);
-        setError("Failed to load your interaction history");
+        console.error("Error fetching quizzes:", error);
+        setError("Failed to load your quiz history. " + (error instanceof Error ? error.message : ""));
         toast.error("Failed to load history");
       } finally {
         setIsLoading(false);
@@ -227,6 +260,32 @@ export default function History() {
       fetchInteractions();
     }
   }, [authState, router]);
+
+  if (authState.isLoading) {
+    return (
+      <div className="container mx-auto py-10 text-center">
+        <p>Loading account information...</p>
+      </div>
+    );
+  }
+
+  if (!authState.user) {
+    return (
+      <div className="container mx-auto py-10">
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 dark:text-gray-400">Please log in to view your quiz history.</p>
+            <Button className="mt-4" onClick={() => { window.location.href = '/login'; }}>
+              Log In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-10 space-y-8">
@@ -248,26 +307,34 @@ export default function History() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <Icons.Loader className="h-8 w-8 animate-spin" />
-              <p className="ml-4 text-lg">Loading your history...</p>
+            <div className="text-center py-8">
+              <div className="w-10 h-10 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin mx-auto"></div>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading your quiz history...</p>
             </div>
           ) : error ? (
-            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg" role="alert">
-              <p className="font-medium">{error}</p>
+            <div className="py-8 space-y-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 p-4 rounded-lg">
+                <h3 className="font-medium text-red-800 dark:text-red-400">Error loading your quiz history</h3>
+                <p className="text-red-700 dark:text-red-300 mt-1">{error}</p>
+                <p className="text-red-600 dark:text-red-400 mt-2">
+                  This might be happening because of a database configuration issue or missing fields in the Appwrite collection.
+                </p>
+              </div>
+              
+              <div className="flex space-x-4">
+                <Button onClick={() => window.location.href = '/setup'}>
+                  Go to Setup Page
+                </Button>
+                <Button variant="outline" onClick={() => window.location.href = '/debug'}>
+                  Debug Connection
+                </Button>
+              </div>
             </div>
           ) : interactions.length === 0 ? (
-            <div className="text-center py-10">
-              <Icons.Type className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No quizzes yet</h3>
-              <p className="mt-2 text-muted-foreground">
-                Get started by creating your first quiz.
-              </p>
-              <Button 
-                className="mt-4" 
-                onClick={() => router.push('/')}
-              >
-                Create Quiz
+            <div className="py-8 space-y-4 text-center">
+              <p className="text-gray-600 dark:text-gray-400">You haven't created any quizzes yet.</p>
+              <Button onClick={() => window.location.href = '/'}>
+                Create Your First Quiz
               </Button>
             </div>
           ) : (
@@ -275,9 +342,9 @@ export default function History() {
               <div className="flex items-center gap-4 py-4">
                 <Input
                   placeholder="Filter by text..."
-                  value={(table.getColumn("input_text")?.getFilterValue() as string) ?? ""}
+                  value={(table.getColumn("text")?.getFilterValue() as string) ?? ""}
                   onChange={(event) =>
-                    table.getColumn("input_text")?.setFilterValue(event.target.value)
+                    table.getColumn("text")?.setFilterValue(event.target.value)
                   }
                   className="max-w-sm"
                 />

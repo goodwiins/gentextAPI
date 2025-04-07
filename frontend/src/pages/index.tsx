@@ -11,20 +11,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Models } from "appwrite";
+
+// Define response types with proper TypeScript patterns
+interface QuizItem {
+  original_sentence: string;
+  partial_sentence: string;
+  false_sentences: string[];
+}
 
 interface ApiResponse {
   success: boolean;
-  data: Array<{
-    original_sentence: string;
-    partial_sentence: string;
-    false_sentences: string[];
-  }>;
+  data: QuizItem[];
   generator_used?: string;
   generation_time?: number;
   message?: string;
 }
 
-// Define type for debugging info
+interface UserStats {
+  quizzes: number;
+  questions: number;
+}
+
 interface DebugInfo {
   rawResponse?: string;
   parsedResponse?: unknown;
@@ -32,29 +40,196 @@ interface DebugInfo {
   processingApproach?: string;
   error?: string;
   errorStack?: string;
-  [key: string]: any; // Allow other properties
+  [key: string]: unknown;
 }
 
-// Define possible API response formats
+// Define API response formats with better typing
 type ApiResponseObject = {
   success?: boolean;
-  data?: any[];
-  [key: string]: any;
+  data?: QuizItem[] | unknown[];
+  questions?: QuizItem[] | unknown[];
+  results?: QuizItem[] | unknown[];
+  items?: QuizItem[] | unknown[];
+  quiz?: QuizItem[] | unknown[];
+  statements?: QuizItem[] | unknown[];
+  [key: string]: unknown;
 };
 
-type ApiResponseData = ApiResponseObject | any[];
+type ApiResponseData = ApiResponseObject | unknown[];
 
-// Helper function to check response type
-function isResponseArray(data: ApiResponseData): data is any[] {
+// Type guards with clearer naming
+function isArrayResponse(data: ApiResponseData): data is unknown[] {
   return Array.isArray(data);
 }
 
-function isResponseObject(data: ApiResponseData): data is ApiResponseObject {
+function isObjectResponse(data: ApiResponseData): data is ApiResponseObject {
   return !Array.isArray(data) && typeof data === 'object' && data !== null;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://167.71.90.100:8000';
+// Add a type for saving quizzes
+interface SaveQuizRequest {
+  title?: string;
+  text: string;
+  questions: QuizQuestion[];
+  userId?: string;
+  createdAt?: string;
+}
+
+// Use the Next.js API proxy to avoid CORS issues
+const API_BASE_URL = '/api';
 // DEBUG_MODE constant removed
+
+// API utility functions
+const api = {
+  /**
+   * Makes an authenticated API request
+   */
+  async request<T>(
+    endpoint: string, 
+    options: RequestInit = {}, 
+    authToken?: string
+  ): Promise<T> {
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    // Create headers object with proper type
+    const headers = new Headers(options.headers || {});
+    
+    // Set content type and conditionally add auth header
+    headers.set('Content-Type', 'application/json');
+    
+    if (authToken) {
+      headers.set('Authorization', `Bearer ${authToken}`);
+    }
+    
+    const config: RequestInit = {
+      ...options,
+      headers,
+    };
+    
+    const response = await fetch(url, config);
+    
+    // Handle non-2xx responses
+    if (!response.ok) {
+      return api.handleErrorResponse(response);
+    }
+    
+    // Parse JSON response
+    const text = await response.text();
+    if (!text) {
+      throw new Error('Empty response received');
+    }
+    
+    try {
+      return JSON.parse(text) as T;
+    } catch (error) {
+      console.error('Failed to parse JSON response:', error);
+      throw new Error('Invalid JSON response from server');
+    }
+  },
+  
+  /**
+   * Handles error responses from the API
+   */
+  async handleErrorResponse(response: Response): Promise<never> {
+    const contentType = response.headers.get('content-type') || '';
+    let errorMessage = response.statusText || 'Request failed';
+    
+    if (contentType.includes('application/json')) {
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        // Fallback to text if JSON parsing fails
+        const errorText = await response.text();
+        if (errorText) errorMessage = errorText;
+      }
+    } else {
+      const errorText = await response.text();
+      if (errorText) errorMessage = errorText;
+    }
+    
+    throw new Error(errorMessage);
+  },
+  
+  /**
+   * Fetches user statistics
+   */
+  async getUserStats(authToken?: string): Promise<UserStats> {
+    if (!authToken) {
+      return { quizzes: 0, questions: 0 };
+    }
+    
+    try {
+      return await api.request<UserStats>(
+        '/api/v2/user/stats', // Ensure this path matches your API's actual endpoint
+        { method: 'GET' },
+        authToken
+      );
+    } catch (error) {
+      // Handle 404 or other errors gracefully for stats
+      console.warn('Failed to fetch user stats:', error);
+      // Return default stats instead of throwing
+      return { quizzes: 0, questions: 0 };
+    }
+  },
+  
+  /**
+   * Generates quiz questions from text
+   */
+  async generateQuiz(
+    text: string, 
+    numStatements: number, 
+    authToken?: string
+  ): Promise<ApiResponseData> {
+    return api.request<ApiResponseData>(
+      '/generate/qa',
+      {
+        method: 'POST',
+        body: JSON.stringify({ text, num_statements: numStatements }),
+      },
+      authToken
+    );
+  },
+  
+  /**
+   * Submits quiz answers
+   */
+  async submitQuiz(
+    text: string,
+    answers: Record<number, string>,
+    questions: QuizQuestion[],
+    authToken?: string
+  ): Promise<unknown> {
+    return api.request(
+      '/api/v2/submit_quiz',
+      {
+        method: 'POST',
+        body: JSON.stringify({ text, answers, questions }),
+      },
+      authToken
+    );
+  },
+  
+  /**
+   * Saves a generated quiz to the database
+   */
+  async saveQuiz(
+    quiz: SaveQuizRequest,
+    authToken?: string
+  ): Promise<{ id: string; success: boolean }> {
+    return api.request<{ id: string; success: boolean }>(
+      '/api/v2/quizzes',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          ...quiz,
+          createdAt: new Date().toISOString(),
+        }),
+      },
+      authToken
+    );
+  },
+};
 
 const Home: React.FC = () => {
   const [text, setText] = useState<string>("");
@@ -62,12 +237,15 @@ const Home: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<'input' | 'quiz'>('input');
-  const [userStats, setUserStats] = useState({ quizzes: 0, questions: 0 });
-  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null); // Use the defined type
+  const [userStats, setUserStats] = useState<UserStats>({ quizzes: 0, questions: 0 });
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const inputSectionRef = useRef<HTMLDivElement>(null);
   const quizSectionRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { authState } = useAuthContext();
+  const [quizTitle, setQuizTitle] = useState<string>("");
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   
   // Determine if in development environment
   const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -89,24 +267,12 @@ const Home: React.FC = () => {
         return;
       }
       
-      const response = await fetch(`${API_BASE_URL}/api/v2/user/stats`, {
-        headers: {
-          'Authorization': `Bearer ${authState.session?.$id}`
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUserStats(data);
-      } else {
-        console.error('Failed to fetch user stats:', response.statusText);
-      }
+      const stats = await api.getUserStats(authState.session.$id);
+      setUserStats(stats);
     } catch (error) {
       console.error('Error fetching user stats:', error);
     }
   };
-
-  // Removed parseExactFormat, parseDirectFormat, superSimpleParser, parseClaudeResponse, adaptApiResponse, extractQuestionsFromUnstructuredData
 
   const handleSubmit = async () => {
     if (!text.trim()) {
@@ -122,185 +288,122 @@ const Home: React.FC = () => {
     }
 
     try {
+      // Reset state
       setIsLoading(true);
       setError(null);
-      setDebugInfo(null); // Reset debug info
+      setDebugInfo(null);
       
-      const requestBody = { 
-        text,
-        num_statements: 5 // You can adjust this number as needed
-      };
+      // Set up request parameters
+      const numStatements = 5; // Could be made configurable
+      const authToken = authState.session?.$id;
       
-      // Log request details only in development
+      // Log request in development
       if (isDevelopment) {
-        console.log('API Request:', `${API_BASE_URL}/generate/qa`, requestBody);
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/generate/qa`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authState.session?.$id}`
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      // Log response status only in development
-      if (isDevelopment) {
-        console.log('API Response Status:', response.status);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-
-      if (!response.ok) {
-        let errorMessage = response.statusText || 'Failed to process text';
-        if (contentType.includes('application/json')) {
-          try {
-            const errorData = await response.json();
-            console.error('Server error response (JSON):', errorData);
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } catch (jsonError) {
-             console.error('Failed to parse error JSON, falling back to text.');
-             const errorText = await response.text();
-             console.error('Server error response (Text):', errorText);
-             errorMessage = errorText || errorMessage;
-          }
-        } else {
-          const errorText = await response.text();
-          console.error('Server error response (Text):', errorText);
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Get the raw response text first
-      const responseText = await response.text();
-      
-      // Log raw response and save for debugging only in development
-      if (isDevelopment) {
-        console.log('Raw API Response Text:', responseText);
+        console.log('Generating quiz with text length:', text.length);
         setDebugInfo({
-          rawResponse: responseText,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          requestDetails: { 
+            textLength: text.length,
+            numStatements
+          }
         });
       }
       
-      // Detect if response is empty or whitespace
-      if (!responseText.trim()) {
-        console.error('Empty response received from server');
-        throw new Error('Server returned an empty response');
-      }
+      // Make API request
+      const responseData = await api.generateQuiz(text, numStatements, authToken);
       
-      // Attempt to parse the response text as JSON
-      let parsedData: ApiResponseData;
-      try {
-        parsedData = JSON.parse(responseText);
-        if (isDevelopment) {
-            setDebugInfo((prev: DebugInfo | null) => ({
-              ...prev || {},
-              parsedResponse: parsedData,
-            }));
-        }
-      } catch (parseError) {
-        console.error('Failed to parse API response as JSON:', parseError);
-        if (isDevelopment) {
-            setDebugInfo((prev: DebugInfo | null) => ({
-              ...prev || {},
-              parseError: (parseError as Error).message,
-              parseErrorStack: (parseError as Error).stack,
-            }));
-        }
-        throw new Error('Invalid JSON response from server');
-      }
-
-      let questionsArray: any[] | null = null;
-      let processingApproach = 'none';
-
-      // Try to extract the questions array based on common structures
-      if (isResponseObject(parsedData)) {
-         // Approach 1: Standard format { success: true, data: [...] }
-         if (parsedData.success === true && Array.isArray(parsedData.data)) {
-            questionsArray = parsedData.data;
-            processingApproach = 'standard_success_data';
-         } 
-         // Approach 2: Data array without success field
-         else if (Array.isArray(parsedData.data)) {
-             questionsArray = parsedData.data;
-             processingApproach = 'object_data_array';
-         }
-         // Approach 3: Look for common array keys
-         else {
-             const commonKeys = ['questions', 'results', 'items', 'quiz', 'statements'];
-             for (const key of commonKeys) {
-                 if (Array.isArray(parsedData[key]) && parsedData[key].length > 0) {
-                     questionsArray = parsedData[key];
-                     processingApproach = `object_key_${key}`;
-                     break;
-                 }
-             }
-         }
-      } 
-      // Approach 4: Direct array response
-      else if (isResponseArray(parsedData)) {
-         questionsArray = parsedData;
-         processingApproach = 'direct_array';
-      }
-      
+      // Log response in development
       if (isDevelopment) {
-           setDebugInfo((prev: DebugInfo | null) => ({
-             ...prev || {},
-             processingApproach: processingApproach,
-             foundArrayLength: questionsArray?.length ?? 0,
-           }));
-      }
-
-      if (!questionsArray) {
-         console.error('Could not find a valid questions array in the response.', parsedData);
-         throw new Error('Could not extract valid question data from response format.');
-      }
-
-      // Process the extracted array using the helper function
-      const processedData = processQuestionsData(questionsArray);
-
-      if (processedData.length === 0) {
-        console.error('No valid questions could be processed from the data.', questionsArray);
-        // Update debug info if needed
-        if (isDevelopment) {
-          setDebugInfo((prev: DebugInfo | null) => ({
-             ...prev || {},
-             processedDataLength: 0,
-             finalProcessedData: [],
-          }));
-        }
-        throw new Error('No valid questions found in the response data.');
-      }
-      
-      // Log processed data only in development
-      if (isDevelopment) {
-        console.log('Processed Questions:', processedData);
-        setDebugInfo((prev: DebugInfo | null) => ({
-           ...prev || {},
-           processedDataLength: processedData.length,
-           finalProcessedData: processedData,
-           finalProcessingApproach: processingApproach,
+        setDebugInfo(prev => ({
+          ...prev || {},
+          parsedResponse: responseData,
+          responseTimestamp: new Date().toISOString()
         }));
       }
       
+      // Extract questions array from response
+      const questionsArray = extractQuestionsArray(responseData, isDevelopment);
+      
+      if (isDevelopment) {
+        setDebugInfo(prev => ({
+          ...prev || {},
+          foundArrayType: questionsArray ? typeof questionsArray : 'null',
+          foundArrayLength: questionsArray?.length ?? 0
+        }));
+      }
+      
+      if (!questionsArray) {
+        throw new Error('Could not extract valid question data from response format');
+      }
+      
+      // Process the questions data
+      const processedData = processQuestionsData(questionsArray, isDevelopment);
+      
+      if (processedData.length === 0) {
+        throw new Error('No valid questions found in the response data');
+      }
+      
+      // Log processed data in development
+      if (isDevelopment) {
+        console.log('Final processed questions:', processedData);
+        setDebugInfo(prev => ({
+          ...prev || {},
+          processedDataLength: processedData.length,
+          finalProcessedData: processedData
+        }));
+      }
+      
+      // Update state with processed data
       setResponseData(processedData);
       setActiveSection('quiz');
       toast.success(`Generated ${processedData.length} questions successfully!`);
       
       // Smooth scroll to quiz section
       quizSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-
+      
+      // Save the quiz data to the database
+      if (processedData.length > 0 && authState.session?.$id && authState.user) {
+        try {
+          setIsSaving(true);
+          setSaveError(null);
+          
+          // Create a default title based on the first few words of the text
+          const defaultTitle = text.trim().split(' ').slice(0, 5).join(' ') + '...';
+          
+          // Get user ID from the Appwrite user object
+          const userId = (authState.user as Models.User<Models.Preferences>).$id;
+          
+          const quizData: SaveQuizRequest = {
+            title: quizTitle || defaultTitle,
+            text,
+            questions: processedData,
+            userId
+          };
+          
+          const result = await api.saveQuiz(quizData, authState.session.$id);
+          
+          if (result.success) {
+            toast.success('Quiz saved successfully!');
+            // Refresh user stats after saving
+            fetchUserStats();
+          }
+        } catch (error) {
+          console.error('Error saving quiz:', error);
+          const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+          setSaveError(errorMessage);
+          toast.error('Failed to save quiz: ' + errorMessage);
+        } finally {
+          setIsSaving(false);
+        }
+      }
     } catch (error) {
       console.error('Error processing text:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       setError(errorMessage);
       
-      // Update debug info with error only in development
+      // Log error in development
       if (isDevelopment) {
-        setDebugInfo((prev: DebugInfo | null) => ({
+        setDebugInfo(prev => ({
           ...prev || {},
           error: errorMessage,
           errorStack: error instanceof Error ? error.stack : 'No stack trace',
@@ -314,152 +417,184 @@ const Home: React.FC = () => {
     }
   };
 
-  // Helper function to process question data regardless of source format
-  // Keep console logs here as they are useful for diagnosing processing issues within this specific function
-  const processQuestionsData = (data: any[]): QuizQuestion[] => {
-    try {
-      // Safety check
-      if (!Array.isArray(data)) {
-        console.error('processQuestionsData received non-array input:', data);
-        return [];
+  /**
+   * Extracts questions from API response data in different formats
+   */
+  const extractQuestionsArray = (data: ApiResponseData, isDevelopment: boolean): unknown[] | null => {
+    if (isArrayResponse(data)) {
+      if (isDevelopment) console.log('Processing direct array response');
+      return data;
+    }
+    
+    if (isObjectResponse(data)) {
+      // Standard format: { success: true, data: [...] }
+      if (data.success === true && Array.isArray(data.data)) {
+        if (isDevelopment) console.log('Processing standard success/data response');
+        return data.data;
       }
       
-      if (data.length === 0) {
-        console.log('processQuestionsData received empty data array');
-        return [];
+      // Data array without success field
+      if (Array.isArray(data.data)) {
+        if (isDevelopment) console.log('Processing object with data array');
+        return data.data;
       }
       
-      // Log the first item to help debugging if needed (conditionally)
-      if (isDevelopment) {
-         console.log('Processing data array (first item):', data[0]);
+      // Check common keys that might contain the questions array
+      const commonKeys = ['questions', 'results', 'items', 'quiz', 'statements'] as const;
+      for (const key of commonKeys) {
+        const possibleArray = data[key];
+        if (Array.isArray(possibleArray) && possibleArray.length > 0) {
+          if (isDevelopment) console.log(`Processing object with ${key} array`);
+          return possibleArray;
+        }
       }
-      
-      const processedQuestions = data.map((item, index) => {
-        // Skip null or undefined items
+    }
+    
+    return null;
+  };
+
+  /**
+   * Processes questions data from various formats into a standardized QuizQuestion array
+   */
+  const processQuestionsData = (data: unknown[], isDevelopment: boolean): QuizQuestion[] => {
+    // Safety checks
+    if (!Array.isArray(data)) {
+      console.error('processQuestionsData: Expected array input, received:', typeof data);
+      return [];
+    }
+    
+    if (data.length === 0) {
+      console.log('processQuestionsData: Received empty data array');
+      return [];
+    }
+    
+    // Log first item in development to help with debugging
+    if (isDevelopment) {
+      console.log('Processing data array sample:', data[0]);
+    }
+    
+    // Define key mapping for different field names
+    const fieldMappings = {
+      originalSentence: ['original_sentence', 'fullSentence', 'sentence', 'answer', 
+                        'correctAnswer', 'correct_answer', 'right_answer', 'text'],
+      partialSentence: ['partial_sentence', 'partialSentence', 'question', 'prompt', 
+                       'stem', 'text'],
+      falseSentences: ['false_sentences', 'falseSentences', 'falseStatements', 'options', 
+                      'choices', 'incorrect_answers', 'wrongAnswers', 'distractors']
+    };
+    
+    // Process each question item
+    const processedQuestions = data
+      .map((item, index) => {
+        // Skip invalid items
         if (!item || typeof item !== 'object') {
           if (isDevelopment) console.log(`Item at index ${index} is invalid (null, undefined, or not an object)`);
           return null;
         }
         
-        // Try to extract fields with various possible names
-        let originalSentence = '';
-        let partialSentence = '';
-        let falseSentences: string[] = [];
+        const itemObj = item as Record<string, unknown>;
         
-        // Extract original sentence (answer)
-        const origKeys = ['original_sentence', 'fullSentence', 'sentence', 'answer', 'correctAnswer', 'correct_answer', 'right_answer', 'text'];
-        for (const key of origKeys) {
-            if (typeof item[key] === 'string') {
-                originalSentence = item[key];
-                break;
+        // Extract fields using property mappings
+        const findValue = (keys: string[], isArray = false): string | string[] | undefined => {
+          for (const key of keys) {
+            const value = itemObj[key];
+            if (isArray) {
+              if (Array.isArray(value)) return value;
+            } else {
+              if (typeof value === 'string') return value;
             }
-        }
+          }
+          return isArray ? [] : undefined;
+        };
         
-        // Extract partial sentence (question/prompt)
-        const partialKeys = ['partial_sentence', 'partialSentence', 'question', 'prompt', 'stem', 'text']; // Allow 'text' again as fallback
-         for (const key of partialKeys) {
-            if (typeof item[key] === 'string') {
-                partialSentence = item[key];
-                break; // Use the first match found
-            }
-        }
+        // Get values with appropriate fallbacks
+        const originalSentence = findValue(fieldMappings.originalSentence) as string || '';
+        let partialSentence = findValue(fieldMappings.partialSentence) as string || '';
+        const falseSentences = findValue(fieldMappings.falseSentences, true) as string[] || [];
         
-        // If still no partial sentence, attempt fallback using original
+        // Generate partial sentence as fallback if missing
         if (!partialSentence && originalSentence) {
-          partialSentence = originalSentence.substring(0, Math.floor(originalSentence.length / 2)).trim() + '...';
+          partialSentence = originalSentence.substring(0, Math.floor(originalSentence.length / 2)) + '...';
           if (isDevelopment) console.log(`Generated fallback partial sentence for item ${index}`);
         }
         
-        // Extract false sentences (distractors/options)
-        const falseKeys = ['false_sentences', 'falseSentences', 'falseStatements', 'options', 'choices', 'incorrect_answers', 'wrongAnswers', 'distractors'];
-        for (const key of falseKeys) {
-           if (Array.isArray(item[key])) {
-               falseSentences = item[key];
-               break;
-           }
-        }
-
-        // Clean up the data
-        const cleanOrigSentence = originalSentence?.toString().replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() || '';
-        const cleanPartialSentence = partialSentence?.toString().replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() || '';
-        // Filter out the correct answer from options if necessary, ensure strings, and remove empty ones
+        // Clean up text data
+        const cleanText = (text: string): string => 
+          text?.toString().replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() || '';
+        
+        const cleanOrigSentence = cleanText(originalSentence);
+        const cleanPartialSentence = cleanText(partialSentence);
+        
+        // Clean and filter false sentences
         const cleanFalseSentences = falseSentences
-          .filter(s => s !== null && s !== undefined && s !== cleanOrigSentence) 
-          .map(s => s?.toString().replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())
-          .filter(s => s && s.length > 0); // Remove empty strings after cleaning
-
-        // For debugging (conditional)
+          .filter(s => s !== null && s !== undefined && s !== cleanOrigSentence)
+          .map(cleanText)
+          .filter(Boolean);
+        
+        // Log processed item in development mode
         if (isDevelopment && (cleanOrigSentence || cleanPartialSentence)) {
-            console.log(`Processed item ${index}:`, {
-              original: cleanOrigSentence,
-              partial: cleanPartialSentence,
-              falseCount: cleanFalseSentences.length
-            });
+          console.log(`Processed item ${index}:`, {
+            original: cleanOrigSentence,
+            partial: cleanPartialSentence,
+            falseCount: cleanFalseSentences.length
+          });
         }
         
-        // Only return valid questions (must have original and partial sentence)
+        // Only return valid questions
         if (cleanOrigSentence && cleanPartialSentence) {
           return {
             original_sentence: cleanOrigSentence,
             partial_sentence: cleanPartialSentence,
             false_sentences: cleanFalseSentences
           };
-        } else {
-           if (isDevelopment) console.warn(`Skipping item ${index} due to missing original or partial sentence after processing.`);
-           return null;
         }
-      }).filter(q => q !== null) as QuizQuestion[]; // Filter out null results
-      
-      console.log(`Successfully processed ${processedQuestions.length} valid questions out of ${data.length} items`);
-      return processedQuestions;
-    } catch (error) {
-      console.error('Error during processQuestionsData:', error);
-      return [];
-    }
+        
+        if (isDevelopment) {
+          console.warn(`Skipping item ${index} due to missing original or partial sentence`);
+        }
+        return null;
+      })
+      .filter((q): q is QuizQuestion => q !== null);
+    
+    console.log(`Successfully processed ${processedQuestions.length} valid questions from ${data.length} items`);
+    return processedQuestions;
   };
 
-  // Removed adaptApiResponse and parseClaudeResponse
-
-  const handleQuizSubmit = async (answers: {[key: number]: string}) => {
+  const handleQuizSubmit = async (answers: Record<number, string>) => {
     try {
       toast.loading('Submitting your answers...');
       
-      const response = await fetch(`${API_BASE_URL}/api/v2/submit_quiz`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authState.session?.$id}`
-        },
-        body: JSON.stringify({
-          text,
-          answers,
-          questions: responseData // Send the processed questions
-        }),
-      });
-
-      if (!response.ok) {
+      // Check for valid session
+      if (!authState.session?.$id) {
         toast.dismiss();
-        // Try to get more specific error message
-        let submitError = 'Failed to submit quiz';
-        try {
-           const errorData = await response.json();
-           submitError = errorData.message || errorData.error || submitError;
-        } catch (e) {
-           // Ignore if response is not JSON
-        }
-        console.error('Error submitting quiz:', response.statusText, submitError);
-        throw new Error(submitError);
+        toast.error('Your session has expired. Please log in again.');
+        router.push('/login');
+        return;
       }
-
-      // const result = await response.json(); // Result might not be needed
-      await response.json(); // Consume response body
+      
+      // Check for valid quiz data
+      if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
+        toast.dismiss();
+        toast.error('Quiz data is invalid. Please try generating a new quiz.');
+        return;
+      }
+      
+      // Submit the quiz
+      await api.submitQuiz(
+        text,
+        answers,
+        responseData,
+        authState.session?.$id
+      );
+      
       toast.dismiss();
       toast.success('Quiz submitted successfully!');
       
-      // Reset state for a new quiz
+      // Reset UI state
       setActiveSection('input');
       setText('');
-      setResponseData(null); // Clear previous quiz data
+      setResponseData(null);
+      setDebugInfo(null);
       
       // Update user stats
       fetchUserStats();
@@ -469,29 +604,142 @@ const Home: React.FC = () => {
     } catch (error) {
       toast.dismiss();
       console.error('Error submitting quiz:', error);
-      toast.error(`Failed to submit quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to submit quiz: ${errorMessage}`);
     }
   };
 
   const handleRetry = () => {
     setError(null);
-    // Optionally trigger handleSubmit again or clear input
-    // For now, just clear the error message
+    // Option to resubmit could be added here if needed
   };
 
   const handleCreateNew = () => {
     setActiveSection('input');
     setText('');
     setResponseData(null);
-    setError(null); // Also clear any previous errors
-    setDebugInfo(null); // Clear debug info
+    setError(null);
+    setDebugInfo(null);
     
     // Smooth scroll to input section
     inputSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Removed testApiResponse, testApiConnectivity, testWithMockEndpoint, testWithMinimalistFetch, testSimpleEndpoint
-  // Removed extractQuestionsFromUnstructuredData
+  // UI Components
+  const FeatureCard: React.FC<{
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    color: 'blue' | 'indigo' | 'purple';
+  }> = ({ icon, title, description, color }) => {
+    const colorMap = {
+      blue: {
+        bg: 'bg-blue-100 dark:bg-blue-900/30',
+        text: 'text-blue-600 dark:text-blue-400'
+      },
+      indigo: {
+        bg: 'bg-indigo-100 dark:bg-indigo-900/30',
+        text: 'text-indigo-600 dark:text-indigo-400'
+      },
+      purple: {
+        bg: 'bg-purple-100 dark:bg-purple-900/30',
+        text: 'text-purple-600 dark:text-purple-400'
+      }
+    };
+    
+    return (
+      <div className="relative">
+        <motion.div 
+          whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
+          transition={{ duration: 0.2 }}
+          className="p-6 md:p-10 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-200 h-full"
+        >
+          <div className={`h-14 w-14 md:h-16 md:w-16 rounded-full ${colorMap[color].bg} flex items-center justify-center mb-6 md:mb-8 shadow-md`}>
+            {icon}
+          </div>
+          <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-5 text-gray-900 dark:text-white">{title}</h2>
+          <p className="text-gray-600 dark:text-gray-400 text-base md:text-lg leading-relaxed">
+            {description}
+          </p>
+        </motion.div>
+      </div>
+    );
+  };
+  
+  const DebugPanel: React.FC<{
+    debugInfo: DebugInfo;
+    onCopy: () => void;
+    onHide: () => void;
+  }> = ({ debugInfo, onCopy, onHide }) => (
+    <Card className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 overflow-auto max-h-[500px]">
+      <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Dev Debug Information</h3>
+      <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap">
+        {JSON.stringify(debugInfo, null, 2)}
+      </pre>
+      <div className="mt-4 flex space-x-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onCopy}
+          className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
+        >
+          Copy Debug Info
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onHide}
+          className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
+        >
+          Hide Debug Info
+        </Button>
+      </div>
+    </Card>
+  );
+  
+  const ErrorDisplay: React.FC<{
+    error: string;
+    onRetry: () => void;
+  }> = ({ error, onRetry }) => (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="my-12 md:my-16 p-6 md:p-10 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg shadow-md relative max-w-3xl mx-auto"
+    >
+      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
+        <div className="flex-shrink-0">
+          <Icons.AlertCircle className="h-7 w-7 md:h-8 md:w-8 text-red-500 animate-pulse" />
+        </div>
+        <div>
+          <h3 className="text-lg font-medium text-red-800 dark:text-red-400">Error Generating Quiz</h3>
+          <p className="mt-2 md:mt-4 text-red-700 dark:text-red-300">{error}</p>
+          <div className="mt-6 md:mt-8">
+            <Button
+              onClick={onRetry}
+              variant="destructive"
+              className="flex items-center px-6 py-3 h-auto transition-all duration-300 hover:scale-105"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  // Add a title input component for the quiz section
+  const QuizTitleInput: React.FC = () => (
+    <div className="mb-4">
+      <input
+        type="text"
+        value={quizTitle}
+        onChange={(e) => setQuizTitle(e.target.value)}
+        placeholder="Enter a title for your quiz (optional)"
+        className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+      />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
@@ -499,30 +747,11 @@ const Home: React.FC = () => {
       <main className="container mx-auto px-4 md:px-6 py-12 md:py-16 relative">
         {/* Debug info display section - only visible in development */}
         {isDevelopment && debugInfo && (
-          <Card className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 overflow-auto max-h-[500px]">
-            <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Dev Debug Information</h3>
-            <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap">
-              {JSON.stringify(debugInfo, null, 2)}
-            </pre>
-            <div className="mt-4 flex space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2))}
-                className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
-              >
-                Copy Debug Info
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setDebugInfo(null)}
-                className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
-              >
-                Hide Debug Info
-              </Button>
-            </div>
-          </Card>
+          <DebugPanel 
+            debugInfo={debugInfo}
+            onCopy={() => navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2))}
+            onHide={() => setDebugInfo(null)}
+          />
         )}
         
         <motion.section 
@@ -634,33 +863,7 @@ const Home: React.FC = () => {
           </AnimatePresence>
 
           <AnimatePresence>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="my-12 md:my-16 p-6 md:p-10 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg shadow-md relative max-w-3xl mx-auto"
-              >
-                <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
-                  <div className="flex-shrink-0">
-                    <Icons.AlertCircle className="h-7 w-7 md:h-8 md:w-8 text-red-500 animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-medium text-red-800 dark:text-red-400">Error Generating Quiz</h3>
-                    <p className="mt-2 md:mt-4 text-red-700 dark:text-red-300">{error}</p>
-                    <div className="mt-6 md:mt-8">
-                      <Button
-                        onClick={handleRetry}
-                        variant="destructive"
-                        className="flex items-center px-6 py-3 h-auto transition-all duration-300 hover:scale-105"
-                      >
-                        Try Again
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+            {error && <ErrorDisplay error={error} onRetry={handleRetry} />}
           </AnimatePresence>
         </motion.section>
 
@@ -698,6 +901,14 @@ const Home: React.FC = () => {
                       Create New Quiz
                     </Button>
                   </div>
+                  
+                  {/* Add quiz title input */}
+                  <div className="px-6 md:px-8 pt-6">
+                    <QuizTitleInput />
+                    {isSaving && <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">Saving quiz...</p>}
+                    {saveError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">Error saving: {saveError}</p>}
+                  </div>
+                  
                   <QuizDisplay 
                     questions={responseData} 
                     originalText={text} 
@@ -717,53 +928,26 @@ const Home: React.FC = () => {
         >
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 dark:from-blue-500/5 dark:to-indigo-500/5 rounded-3xl blur-3xl" />
           
-          <div className="relative">
-            <motion.div 
-              whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-              transition={{ duration: 0.2 }}
-              className="p-6 md:p-10 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-200 h-full"
-            >
-              <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-6 md:mb-8 shadow-md">
-                <Icons.Rocket className="h-7 w-7 md:h-8 md:w-8 text-blue-600 dark:text-blue-400" />
-              </div>
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-5 text-gray-900 dark:text-white">AI-Powered Quizzes</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-base md:text-lg leading-relaxed">
-                Our advanced AI technology generates relevant questions instantly from any text you provide.
-              </p>
-            </motion.div>
-          </div>
+          <FeatureCard 
+            icon={<Icons.Rocket className="h-7 w-7 md:h-8 md:w-8 text-blue-600 dark:text-blue-400" />}
+            title="AI-Powered Quizzes"
+            description="Our advanced AI technology generates relevant questions instantly from any text you provide."
+            color="blue"
+          />
           
-          <div className="relative">
-            <motion.div 
-              whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-              transition={{ duration: 0.2 }}
-              className="p-6 md:p-10 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-200 h-full"
-            >
-              <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-6 md:mb-8 shadow-md">
-                <Icons.Shield className="h-7 w-7 md:h-8 md:w-8 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-5 text-gray-900 dark:text-white">Secure & Private</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-base md:text-lg leading-relaxed">
-                Your data is encrypted and protected. We prioritize your privacy and security.
-              </p>
-            </motion.div>
-          </div>
+          <FeatureCard
+            icon={<Icons.Shield className="h-7 w-7 md:h-8 md:w-8 text-indigo-600 dark:text-indigo-400" />}
+            title="Secure & Private"
+            description="Your data is encrypted and protected. We prioritize your privacy and security."
+            color="indigo"
+          />
           
-          <div className="relative">
-            <motion.div 
-              whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-              transition={{ duration: 0.2 }}
-              className="p-6 md:p-10 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-200 h-full"
-            >
-              <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-6 md:mb-8 shadow-md">
-                <Icons.Settings className="h-7 w-7 md:h-8 md:w-8 text-purple-600 dark:text-purple-400" />
-              </div>
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-5 text-gray-900 dark:text-white">Track Progress</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-base md:text-lg leading-relaxed">
-                Monitor your learning progress and review your quiz history to improve over time. (Coming Soon!)
-              </p>
-            </motion.div>
-          </div>
+          <FeatureCard
+            icon={<Icons.Settings className="h-7 w-7 md:h-8 md:w-8 text-purple-600 dark:text-purple-400" />}
+            title="Track Progress"
+            description="Monitor your learning progress and review your quiz history to improve over time. (Coming Soon!)"
+            color="purple"
+          />
         </motion.section>
       </main>
     </div>

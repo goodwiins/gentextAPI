@@ -14,6 +14,7 @@ import asyncio
 import signal
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import time
+import uuid
 
 # Configure logging
 logging.basicConfig(
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Environment variables for configuration
 HOST = os.getenv("API_HOST", "0.0.0.0")  # Default to all interfaces for production
 PORT = int(os.getenv("API_PORT", "8000"))
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://167.71.90.100:3000,http://167.71.90.100").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://167.71.90.100:3000,http://167.71.90.100,http://localhost").split(",")
 WORKERS = int(os.getenv("API_WORKERS", "1"))
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 MAX_WORKERS = int(os.getenv("MAX_THREAD_WORKERS", os.cpu_count() or 4))
@@ -81,6 +82,13 @@ class HealthResponse(BaseModel):
     version: str = "1.0.0"
     timestamp: str
     models_loaded: bool
+
+class QuizSubmission(BaseModel):
+    title: Optional[str] = None
+    text: str
+    questions: List[Dict[str, Any]]
+    userId: Optional[str] = None
+    createdAt: Optional[str] = None
 
 # Initialize the generator factory with configurable thread pool
 generator_factory = StatementGeneratorFactory(max_workers=MAX_WORKERS)
@@ -422,6 +430,39 @@ async def log_batch_completion(request_id: str, sentence_count: int, elapsed_tim
             
     except Exception as e:
         logger.error(f"Error in batch logging task: {str(e)}", exc_info=True)
+
+@app.post("/api/v2/quizzes", status_code=201)
+async def save_quiz(quiz: QuizSubmission):
+    """
+    Save a generated quiz to a database (currently just returns success with mock ID)
+    
+    Example request:
+    ```json
+    {
+        "title": "My Quiz",
+        "text": "Original text content",
+        "questions": [{"original_sentence": "...", "partial_sentence": "...", "false_sentences": ["...", "..."]}],
+        "userId": "user123"
+    }
+    ```
+    """
+    try:
+        # This is a mock implementation - in a real app, you would save to a database
+        logger.info(f"Saving quiz with title: {quiz.title or 'Untitled'}")
+        logger.info(f"Text length: {len(quiz.text)}, Questions: {len(quiz.questions)}")
+        
+        # Generate a mock ID
+        quiz_id = str(uuid.uuid4())
+        
+        # Return success with the mock ID
+        return {
+            "id": quiz_id,
+            "success": True,
+            "message": "Quiz saved successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error saving quiz: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to save quiz: {str(e)}")
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
