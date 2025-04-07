@@ -70,7 +70,10 @@ class GenerateResponse(BaseModel):
 
 class QAResponse(BaseModel):
     success: bool
-    data: Union[Dict[str, Any], str]
+    data: Union[Dict[str, Any], List[Dict[str, Any]]]
+    generator_used: Optional[str] = None
+    generation_time: Optional[float] = None
+    message: Optional[str] = None
 
 class HealthResponse(BaseModel):
     status: str
@@ -273,7 +276,7 @@ async def generate_batch(request: BatchGenerateRequest, background_tasks: Backgr
 @app.post("/generate/qa", response_model=QAResponse)
 async def generate_qa(request: TextRequest, background_tasks: BackgroundTasks):
     """
-    Generate Q&A format from input text.
+    Generate Q&A format from input text using Claude.
     
     Example request:
     ```json
@@ -282,46 +285,66 @@ async def generate_qa(request: TextRequest, background_tasks: BackgroundTasks):
         "num_statements": 3
     }
     ```
+    
+    Example response:
+    ```json
+    {
+        "success": true,
+        "data": [
+            {
+                "original_sentence": "Complete sentence from text",
+                "partial_sentence": "First part of sentence",
+                "false_sentences": ["False option 1", "False option 2", "False option 3"]
+            }
+        ]
+    }
+    ```
     """
     try:
         # Validate input
         if not request.text or len(request.text) < 10:
             raise HTTPException(status_code=400, detail="Text is too short")
             
-        # Get generator and use async version
-        generator = generator_factory.get_generator('gpt2')
+        # Try to get Claude generator first
+        generator = generator_factory.get_generator('claude')
         if generator is None:
-            raise HTTPException(status_code=503, detail="Generator not available")
+            # Fallback to GPT-2 if Claude is not available
+            generator = generator_factory.get_generator('gpt2')
+            if generator is None:
+                raise HTTPException(status_code=503, detail="No generators available")
             
-        # Option 1: Process asynchronously but wait for result
-        qa_output = await generator.generate_qa_from_text_async(request.text)
+        # Generate Q&A pairs
+        start_time = time.time()
+        qa_output = await generator.generate_qa_from_text_async(request.text, request.num_statements)
+        generation_time = time.time() - start_time
         
-        # Option 2: For very long texts, use background task for logging/cleanup
-        # This won't affect the response but helps with resource management
+        # Log the request in background
         background_tasks.add_task(
-            log_qa_generation, 
+            log_qa_generation,
             request.text[:100] + "...",  # Log just the beginning for privacy
-            len(qa_output.get("questions", [])) if isinstance(qa_output, dict) else 0
+            len(qa_output) if isinstance(qa_output, list) else 0,
+            generation_time
         )
         
-        # Format the response properly
-        if isinstance(qa_output, str):
-            formatted_output = {
-                "format": "qa",
-                "content": qa_output,
-                "generated_at": datetime.now().isoformat(),
-                "processing_mode": "async"
+        # Format the response
+        if isinstance(qa_output, list) and qa_output:
+            # Return the questions in the standard format
+            return {
+                "success": True,
+                "data": qa_output,
+                "generator_used": "claude" if generator.__class__.__name__ == "ClaudeFalseStatementGenerator" else "gpt2",
+                "generation_time": generation_time
             }
         else:
-            formatted_output = qa_output
-            if "generated_at" not in formatted_output:
-                formatted_output["generated_at"] = datetime.now().isoformat()
-            formatted_output["processing_mode"] = "async"
+            # Handle empty response
+            return {
+                "success": True,
+                "data": [],
+                "generator_used": "claude" if generator.__class__.__name__ == "ClaudeFalseStatementGenerator" else "gpt2",
+                "generation_time": generation_time,
+                "message": "No questions were generated. The text might be too short or not suitable for Q&A generation."
+            }
             
-        return {
-            "success": True,
-            "data": formatted_output
-        }
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -329,7 +352,7 @@ async def generate_qa(request: TextRequest, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail=f"Failed to generate Q&A: {str(e)}")
 
 # Helper function for background task
-async def log_qa_generation(text_preview: str, question_count: int):
+async def log_qa_generation(text_preview: str, question_count: int, generation_time: float):
     """Log QA generation details for monitoring"""
     try:
         logger.info(f"Generated QA content with {question_count} questions for text starting with: {text_preview}")

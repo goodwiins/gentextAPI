@@ -212,7 +212,7 @@ Output the false statements only, one per line, with no explanations or numberin
         """
         return
         
-    async def generate_qa_from_text_async(self, text: str, num_questions: int = 3) -> Dict[str, Any]:
+    async def generate_qa_from_text_async(self, text: str, num_questions: int = 3) -> List[Dict[str, Any]]:
         """
         Generate Q&A pairs from input text using Claude, with one true and two false answers per question.
         
@@ -221,18 +221,13 @@ Output the false statements only, one per line, with no explanations or numberin
             num_questions: Number of Q&A pairs to generate
             
         Returns:
-            Dictionary containing questions with multiple-choice answers (one true, two false)
+            List of Q&A pairs in the standard format
         """
         try:
             # Check if text is too short
             if len(text.strip()) < 20:
-                return {
-                    "format_version": "1.0",
-                    "questions": [],
-                    "total_questions": 0,
-                    "error": "Input text is too short to generate meaningful Q&A",
-                    "generated_at": time.time()
-                }
+                logger.warning("Input text is too short to generate meaningful Q&A")
+                return []
                 
             prompt = f"""
 Please generate {num_questions} multiple-choice questions based on the following text.
@@ -273,13 +268,7 @@ Do not include any additional text outside of this JSON structure.
             
             if "content" not in response or len(response["content"]) == 0:
                 logger.error("Invalid response format from Claude API for QA generation")
-                return {
-                    "format_version": "1.0",
-                    "questions": [],
-                    "total_questions": 0,
-                    "error": "Failed to generate QA content",
-                    "generated_at": time.time()
-                }
+                return []
                 
             # Extract the text response
             text_response = response["content"][0]["text"]
@@ -299,34 +288,29 @@ Do not include any additional text outside of this JSON structure.
                 if "questions" not in qa_data or not isinstance(qa_data["questions"], list):
                     raise ValueError("Response lacks 'questions' array")
                     
-                # Add metadata
-                result = {
-                    "format_version": "1.0",
-                    "questions": qa_data["questions"],
-                    "total_questions": len(qa_data["questions"]),
-                    "generated_at": time.time(),
-                    "processing_mode": "claude"
-                }
-                return result
+                # Convert to the standard format
+                formatted_questions = []
+                for q in qa_data["questions"]:
+                    # Find the correct answer
+                    correct_answer = next((a["text"] for a in q["answers"] if a["correct"]), None)
+                    if not correct_answer:
+                        continue
+                        
+                    # Get false answers
+                    false_answers = [a["text"] for a in q["answers"] if not a["correct"]]
+                    
+                    formatted_questions.append({
+                        "original_sentence": correct_answer,
+                        "partial_sentence": q["question"],
+                        "false_sentences": false_answers
+                    })
+                
+                return formatted_questions
                 
             except (json.JSONDecodeError, ValueError) as e:
                 logger.error(f"Error parsing QA response: {str(e)}", exc_info=True)
-                # Return error
-                return {
-                    "format_version": "1.0",
-                    "questions": [],
-                    "total_questions": 0,
-                    "error": f"Failed to parse response: {str(e)}",
-                    "generated_at": time.time(),
-                    "processing_mode": "claude"
-                }
+                return []
                 
         except Exception as e:
             logger.error(f"Error in QA generation with Claude: {str(e)}", exc_info=True)
-            return {
-                "format_version": "1.0",
-                "questions": [],
-                "total_questions": 0,
-                "error": str(e),
-                "generated_at": time.time()
-            }
+            return []

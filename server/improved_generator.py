@@ -496,51 +496,115 @@ class ImprovedFalseStatementGenerator:
             num_statements
         )
         
-    async def generate_qa_from_text_async(self, text: str) -> Dict[str, Any]:
-        """Generate Q&A format from text asynchronously."""
+    async def generate_questions_from_text_async(self, text: str, num_questions: int = 3) -> List[Dict[str, Any]]:
+        """
+        Generate questions from text asynchronously.
+        
+        Args:
+            text: The input text to generate questions from
+            num_questions: Number of questions to generate
+            
+        Returns:
+            List of question dictionaries with answers
+        """
         await self._ensure_models_loaded()
         
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self._executor, self.generate_qa_from_text, text)
-    
-    def generate_qa_from_text(self, text: str) -> Dict[str, Any]:
-        """Generate Q&A format from text."""
+        return await loop.run_in_executor(
+            self._executor,
+            self.generate_questions_from_text,
+            text,
+            num_questions
+        )
+        
+    def generate_questions_from_text(self, text: str, num_questions: int = 3) -> List[Dict[str, Any]]:
+        """
+        Generate questions from text.
+        
+        Args:
+            text: The input text to generate questions from
+            num_questions: Number of questions to generate
+            
+        Returns:
+            List of question dictionaries with answers
+        """
         if not self._is_ready():
             logger.warning("Models not fully loaded yet, waiting...")
             self._load_models()
             
         try:
+            # Process the text to get sentences
             results = self.process_full_text(text)
-            questions = []
             
+            # Limit to requested number of questions
+            results = results[:num_questions]
+            
+            # Format as questions
+            questions = []
             for result in results:
                 # Create question from original sentence
-                question = f"What is the correct statement about {result['partial_sentence']}?"
+                question = f"What is stated in the text about {result['partial_sentence']}?"
                 
-                # Combine correct and false statements
-                choices = [result['original_sentence']] + result['false_sentences']
+                # Format answers
+                answers = [
+                    {"text": result['original_sentence'], "correct": True}
+                ]
+                
+                # Add false answers
+                for false_sentence in result['false_sentences']:
+                    answers.append({"text": false_sentence, "correct": False})
                 
                 questions.append({
                     "question": question,
-                    "choices": choices,
-                    "correct_answer": 0  # Index of the correct answer (always first in the list)
+                    "answers": answers
                 })
             
-            return {
-                "questions": questions,
-                "format_version": "1.0",
-                "total_questions": len(questions),
-                "generated_at": time.time()
-            }
+            return questions
+            
         except Exception as e:
-            logger.error(f"Error generating Q&A: {str(e)}", exc_info=True)
-            return {
-                "questions": [],
-                "format_version": "1.0",
-                "total_questions": 0,
-                "error": str(e),
-                "generated_at": time.time()
-            }
+            logger.error(f"Error generating questions: {str(e)}", exc_info=True)
+            return []
+            
+    async def generate_qa_from_text_async(self, text: str, num_questions: int = 3) -> List[Dict[str, Any]]:
+        """
+        Generate Q&A pairs from input text using GPT-2.
+        
+        Args:
+            text: The input text to generate questions and answers from
+            num_questions: Number of Q&A pairs to generate
+            
+        Returns:
+            List of Q&A pairs in the standard format
+        """
+        try:
+            # Check if text is too short
+            if len(text.strip()) < 20:
+                logger.warning("Input text is too short to generate meaningful Q&A")
+                return []
+                
+            # Generate questions using the existing method
+            questions = await self.generate_questions_from_text_async(text, num_questions)
+            
+            # Format the questions into the standard format
+            formatted_questions = []
+            for q in questions:
+                # Get the correct answer (first answer)
+                correct_answer = q["answers"][0]["text"]
+                
+                # Get false answers (remaining answers)
+                false_answers = [a["text"] for a in q["answers"][1:]]
+                
+                formatted_questions.append({
+                    "original_sentence": correct_answer,
+                    "partial_sentence": q["question"],
+                    "false_sentences": false_answers
+                })
+            
+            return formatted_questions
+            
+        except Exception as e:
+            logger.error(f"Error in QA generation with GPT-2: {str(e)}", exc_info=True)
+            return []
             
     def cleanup(self):
         """Release resources and clear caches to free memory"""
