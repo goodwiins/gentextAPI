@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from "next/router";
 import { Submission } from "@/components/form/Submission";
 import { QuizDisplay, QuizQuestion } from '@/components/quiz';
-import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
+import LoadingSpinner from '@/components/feedback/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from "@/context/auth-context";
 import { Icons } from '@/components/Icons';
@@ -124,22 +124,35 @@ const withRetry = async <T,>(
   }
 };
 
-// Enhanced API utility
+// Enhanced API utility with request deduplication and caching
 const api = {
   // Keep track of active requests so we can cancel them if needed
   activeRequests: new Map<string, AbortController>(),
+  // Cache for API responses
+  responseCache: new Map<string, { data: any; timestamp: number }>(),
+  // Cache TTL in milliseconds (5 minutes)
+  CACHE_TTL: 5 * 60 * 1000,
 
   /**
-   * Makes an authenticated API request with better error handling and cancellation
+   * Makes an authenticated API request with better error handling, caching and cancellation
    */
   async request<T>(
     endpoint: string, 
     options: RequestInit = {}, 
     authToken?: string,
-    requestId?: string
+    requestId?: string,
+    useCache: boolean = true
   ): Promise<T> {
     // Create a unique ID for this request if not provided
     const id = requestId || `${endpoint}-${Date.now()}`;
+    
+    // Check cache first if enabled
+    if (useCache) {
+      const cachedResponse = this.responseCache.get(id);
+      if (cachedResponse && Date.now() - cachedResponse.timestamp < this.CACHE_TTL) {
+        return cachedResponse.data as T;
+      }
+    }
     
     // Cancel any existing request with the same ID
     if (this.activeRequests.has(id)) {
@@ -189,7 +202,17 @@ const api = {
         this.activeRequests.delete(id);
         
         try {
-          return JSON.parse(text) as T;
+          const data = JSON.parse(text) as T;
+          
+          // Cache the response if caching is enabled
+          if (useCache) {
+            this.responseCache.set(id, {
+              data,
+              timestamp: Date.now()
+            });
+          }
+          
+          return data;
         } catch (error) {
           console.error('Failed to parse JSON response:', error);
           throw new Error('Invalid JSON response from server');
@@ -210,13 +233,21 @@ const api = {
   },
   
   /**
-   * Cancels all active requests
+   * Clears the response cache
+   */
+  clearCache() {
+    this.responseCache.clear();
+  },
+  
+  /**
+   * Cancels all active requests and clears cache
    */
   cancelAllRequests() {
     this.activeRequests.forEach(controller => {
       controller.abort();
     });
     this.activeRequests.clear();
+    this.clearCache();
   },
   
   /**
@@ -397,62 +428,80 @@ const api = {
 };
 
 const Home: React.FC = () => {
-  const [text, setText] = useState<string>("");
-  const [responseData, setResponseData] = useState<QuizQuestion[] | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'input' | 'quiz'>('input');
+  // Group related state together
+  const [quizState, setQuizState] = useState({
+    text: "",
+    responseData: null as QuizQuestion[] | null,
+    isLoading: false,
+    error: null as string | null,
+    activeSection: 'input' as 'input' | 'quiz',
+    quizTitle: "",
+    isSaving: false,
+    saveError: null as string | null
+  });
+
   const [userStats, setUserStats] = useState<UserStats>({ quizzes: 0, questions: 0 });
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  
   const inputSectionRef = useRef<HTMLDivElement>(null);
   const quizSectionRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { authState } = useAuthContext();
-  const [quizTitle, setQuizTitle] = useState<string>("");
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   
   // Determine if in development environment
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
+  // Memoize handlers
+  const handleTextChange = useCallback((newText: string) => {
+    setQuizState(prev => ({ ...prev, text: newText }));
+  }, []);
+
+  const handleQuizTitleChange = useCallback((newTitle: string) => {
+    setQuizState(prev => ({ ...prev, quizTitle: newTitle }));
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    setQuizState(prev => ({ ...prev, error: null }));
+  }, []);
+
+  const handleCreateNew = useCallback(() => {
+    setQuizState(prev => ({
+      ...prev,
+      text: '',
+      responseData: null,
+      error: null,
+      activeSection: 'input'
+    }));
+    setDebugInfo(null);
+    inputSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  // Memoize the fetchUserStats function
   const fetchUserStats = useCallback(async () => {
     try {
-      // Check if we have a valid session before making the API call
-      if (!authState.session || !authState.session.$id) {
+      if (!authState.session?.$id) {
         console.warn('No valid session found, skipping stats fetch');
         return;
       }
       
-      // Use mock data instead of making an API call
-      // This simulates a successful response
       const mockStats: UserStats = {
         quizzes: 5, 
         questions: 25
       };
       
-      // Update state with mock data
       setUserStats(mockStats);
     } catch (error) {
       console.error('Error fetching user stats:', error);
     }
-  }, [authState.session, setUserStats]);
+  }, [authState.session]);
 
-  useEffect(() => {
-    if (!authState.isLoading && !authState.user) {
-      router.push("/login");
-    } else if (authState.user) {
-      // Fetch user stats if user is logged in
-      fetchUserStats();
-    }
-  }, [authState, router, fetchUserStats]);
-
-  const handleSubmit = async () => {
-    if (!text.trim()) {
+  // Memoize the handleSubmit function
+  const handleSubmit = useCallback(async () => {
+    if (!quizState.text.trim()) {
       toast.error('Please enter some text to generate questions');
       return;
     }
 
-    // Check if we have a valid session before proceeding
     if (!authState.user && !authState.session) {
       toast.error('Your session has expired. Please log in again.');
       router.push('/login');
@@ -460,31 +509,29 @@ const Home: React.FC = () => {
     }
 
     try {
-      // Reset state
-      setIsLoading(true);
-      setError(null);
+      setQuizState(prev => ({
+        ...prev,
+        isLoading: true,
+        error: null
+      }));
       setDebugInfo(null);
       
-      // Set up request parameters
-      const numStatements = 5; // Could be made configurable
+      const numStatements = 5;
       const authToken = authState.session?.$id;
       
-      // Log request in development
       if (isDevelopment) {
-        console.log('Generating quiz with text length:', text.length);
+        console.log('Generating quiz with text length:', quizState.text.length);
         setDebugInfo({
           timestamp: new Date().toISOString(),
           requestDetails: { 
-            textLength: text.length,
+            textLength: quizState.text.length,
             numStatements
           }
         });
       }
       
-      // Make API request
-      const responseData = await api.generateQuiz(text, numStatements, authToken);
+      const responseData = await api.generateQuiz(quizState.text, numStatements, authToken);
       
-      // Log response in development
       if (isDevelopment) {
         setDebugInfo(prev => ({
           ...prev || {},
@@ -493,7 +540,6 @@ const Home: React.FC = () => {
         }));
       }
       
-      // Extract questions array from response
       const questionsArray = extractQuestionsArray(responseData, isDevelopment);
       
       if (isDevelopment) {
@@ -508,14 +554,12 @@ const Home: React.FC = () => {
         throw new Error('Could not extract valid question data from response format');
       }
       
-      // Process the questions data
       const processedData = processQuestionsData(questionsArray, isDevelopment);
       
       if (processedData.length === 0) {
         throw new Error('No valid questions found in the response data');
       }
       
-      // Log processed data in development
       if (isDevelopment) {
         console.log('Final processed questions:', processedData);
         setDebugInfo(prev => ({
@@ -525,29 +569,26 @@ const Home: React.FC = () => {
         }));
       }
       
-      // Update state with processed data
-      setResponseData(processedData);
-      setActiveSection('quiz');
-      toast.success(`Generated ${processedData.length} questions successfully!`);
+      setQuizState(prev => ({
+        ...prev,
+        responseData: processedData,
+        activeSection: 'quiz',
+        isLoading: false
+      }));
       
-      // Smooth scroll to quiz section
+      toast.success(`Generated ${processedData.length} questions successfully!`);
       quizSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
       
-      // Save the quiz data to the database
       if (processedData.length > 0 && authState.session?.$id && authState.user) {
         try {
-          setIsSaving(true);
-          setSaveError(null);
+          setQuizState(prev => ({ ...prev, isSaving: true, saveError: null }));
           
-          // Create a default title based on the first few words of the text
-          const defaultTitle = text.trim().split(' ').slice(0, 5).join(' ') + '...';
-          
-          // Get user ID from the Appwrite user object
+          const defaultTitle = quizState.text.trim().split(' ').slice(0, 5).join(' ') + '...';
           const userId = (authState.user as Models.User<Models.Preferences>).$id;
           
           const quizData: SaveQuizRequest = {
-            title: quizTitle || defaultTitle,
-            text,
+            title: quizState.quizTitle || defaultTitle,
+            text: quizState.text,
             questions: processedData,
             userId
           };
@@ -556,24 +597,30 @@ const Home: React.FC = () => {
           
           if (result.success) {
             toast.success('Quiz saved successfully!');
-            // Refresh user stats after saving
             fetchUserStats();
           }
         } catch (error) {
           console.error('Error saving quiz:', error);
           const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-          setSaveError(errorMessage);
+          setQuizState(prev => ({
+            ...prev,
+            saveError: errorMessage
+          }));
           toast.error('Failed to save quiz: ' + errorMessage);
         } finally {
-          setIsSaving(false);
+          setQuizState(prev => ({ ...prev, isSaving: false }));
         }
       }
     } catch (error) {
       console.error('Error processing text:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      setError(errorMessage);
       
-      // Log error in development
+      setQuizState(prev => ({
+        ...prev,
+        error: errorMessage,
+        isLoading: false
+      }));
+      
       if (isDevelopment) {
         setDebugInfo(prev => ({
           ...prev || {},
@@ -584,15 +631,75 @@ const Home: React.FC = () => {
       }
       
       toast.error('Failed to generate questions: ' + errorMessage);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [quizState.text, quizState.quizTitle, authState, isDevelopment, fetchUserStats, router]);
+
+  // Memoize the handleQuizSubmit function
+  const handleQuizSubmit = useCallback(async (answers: Record<number, string>) => {
+    try {
+      toast.loading('Submitting your answers...');
+      
+      if (!authState.session?.$id) {
+        toast.dismiss();
+        toast.error('Your session has expired. Please log in again.');
+        router.push('/login');
+        return;
+      }
+      
+      if (!quizState.responseData || !Array.isArray(quizState.responseData) || quizState.responseData.length === 0) {
+        toast.dismiss();
+        toast.error('Quiz data is invalid. Please try generating a new quiz.');
+        return;
+      }
+      
+      await api.submitQuiz(
+        quizState.text,
+        answers,
+        quizState.responseData,
+        authState.session?.$id
+      );
+      
+      toast.dismiss();
+      toast.success('Quiz submitted successfully!');
+      
+      setQuizState(prev => ({
+        ...prev,
+        text: '',
+        responseData: null,
+        activeSection: 'input'
+      }));
+      setDebugInfo(null);
+      
+      fetchUserStats();
+      inputSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      toast.dismiss();
+      console.error('Error submitting quiz:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to submit quiz: ${errorMessage}`);
+    }
+  }, [quizState.text, quizState.responseData, authState, router, fetchUserStats]);
+
+  // Effect for authentication check
+  useEffect(() => {
+    if (!authState.isLoading && !authState.user) {
+      router.push("/login");
+    } else if (authState.user) {
+      fetchUserStats();
+    }
+  }, [authState, router, fetchUserStats]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      api.cancelAllRequests();
+    };
+  }, []);
 
   /**
    * Extracts questions from API response data in different formats
    */
-  const extractQuestionsArray = (data: ApiResponseData, isDevelopment: boolean): unknown[] | null => {
+  const extractQuestionsArray = useCallback((data: ApiResponseData, isDevelopment: boolean): unknown[] | null => {
     if (isArrayResponse(data)) {
       if (isDevelopment) console.log('Processing direct array response');
       return data;
@@ -623,12 +730,12 @@ const Home: React.FC = () => {
     }
     
     return null;
-  };
+  }, []);
 
   /**
    * Processes questions data from various formats into a standardized QuizQuestion array
    */
-  const processQuestionsData = (data: unknown[], isDevelopment: boolean): QuizQuestion[] => {
+  const processQuestionsData = useCallback((data: unknown[], isDevelopment: boolean): QuizQuestion[] => {
     // Safety checks
     if (!Array.isArray(data)) {
       console.error('processQuestionsData: Expected array input, received:', typeof data);
@@ -730,72 +837,7 @@ const Home: React.FC = () => {
     
     console.log(`Successfully processed ${processedQuestions.length} valid questions from ${data.length} items`);
     return processedQuestions;
-  };
-
-  const handleQuizSubmit = async (answers: Record<number, string>) => {
-    try {
-      toast.loading('Submitting your answers...');
-      
-      // Check for valid session
-      if (!authState.session?.$id) {
-        toast.dismiss();
-        toast.error('Your session has expired. Please log in again.');
-        router.push('/login');
-        return;
-      }
-      
-      // Check for valid quiz data
-      if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
-        toast.dismiss();
-        toast.error('Quiz data is invalid. Please try generating a new quiz.');
-        return;
-      }
-      
-      // Submit the quiz
-      await api.submitQuiz(
-        text,
-        answers,
-        responseData,
-        authState.session?.$id
-      );
-      
-      toast.dismiss();
-      toast.success('Quiz submitted successfully!');
-      
-      // Reset UI state
-      setActiveSection('input');
-      setText('');
-      setResponseData(null);
-      setDebugInfo(null);
-      
-      // Update user stats
-      fetchUserStats();
-      
-      // Smooth scroll back to input section
-      inputSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-    } catch (error) {
-      toast.dismiss();
-      console.error('Error submitting quiz:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to submit quiz: ${errorMessage}`);
-    }
-  };
-
-  const handleRetry = () => {
-    setError(null);
-    // Option to resubmit could be added here if needed
-  };
-
-  const handleCreateNew = () => {
-    setActiveSection('input');
-    setText('');
-    setResponseData(null);
-    setError(null);
-    setDebugInfo(null);
-    
-    // Smooth scroll to input section
-    inputSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   // UI Components
   const FeatureCard: React.FC<{
@@ -803,7 +845,7 @@ const Home: React.FC = () => {
     title: string;
     description: string;
     color: 'blue' | 'indigo' | 'purple';
-  }> = ({ icon, title, description, color }) => {
+  }> = React.memo(({ icon, title, description, color }) => {
     const colorMap = {
       blue: {
         bg: 'bg-blue-100 dark:bg-blue-900/30',
@@ -836,13 +878,13 @@ const Home: React.FC = () => {
         </motion.div>
       </div>
     );
-  };
+  });
   
   const DebugPanel: React.FC<{
     debugInfo: DebugInfo;
     onCopy: () => void;
     onHide: () => void;
-  }> = ({ debugInfo, onCopy, onHide }) => (
+  }> = React.memo(({ debugInfo, onCopy, onHide }) => (
     <Card className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 overflow-auto max-h-[500px]">
       <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Dev Debug Information</h3>
       <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap">
@@ -867,12 +909,12 @@ const Home: React.FC = () => {
         </Button>
       </div>
     </Card>
-  );
+  ));
   
   const ErrorDisplay: React.FC<{
     error: string;
     onRetry: () => void;
-  }> = ({ error, onRetry }) => (
+  }> = React.memo(({ error, onRetry }) => (
     <motion.div 
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -898,20 +940,20 @@ const Home: React.FC = () => {
         </div>
       </div>
     </motion.div>
-  );
+  ));
 
   // Add a title input component for the quiz section
-  const QuizTitleInput: React.FC = () => (
+  const QuizTitleInput: React.FC = React.memo(() => (
     <div className="mb-4">
       <input
         type="text"
-        value={quizTitle}
-        onChange={(e) => setQuizTitle(e.target.value)}
+        value={quizState.quizTitle}
+        onChange={(e) => handleQuizTitleChange(e.target.value)}
         placeholder="Enter a title for your quiz (optional)"
         className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
       />
     </div>
-  );
+  ));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
@@ -1046,7 +1088,7 @@ const Home: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className={`transition-all duration-500 relative mb-20 md:mb-32 ${activeSection === 'quiz' && responseData ? 'opacity-80 hover:opacity-100 filter hover:blur-none blur-[1px]' : ''}`}
+          className={`transition-all duration-500 relative mb-20 md:mb-32 ${quizState.activeSection === 'quiz' && quizState.responseData ? 'opacity-80 hover:opacity-100 filter hover:blur-none blur-[1px]' : ''}`}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 dark:from-blue-500/5 dark:to-indigo-500/5 rounded-3xl blur-3xl" />
           <div className="relative p-4 md:p-6 lg:p-8">
@@ -1100,9 +1142,9 @@ const Home: React.FC = () => {
             <div className="mx-auto max-w-4xl">
               <Submission 
                 onSubmit={handleSubmit} 
-                onTextChange={setText}
-                text={text}
-                isLoading={isLoading}
+                onTextChange={handleTextChange}
+                text={quizState.text}
+                isLoading={quizState.isLoading}
               />
               
               <div className="mt-6 md:mt-8 text-center">
@@ -1114,7 +1156,7 @@ const Home: React.FC = () => {
           </div>
 
           <AnimatePresence>
-            {isLoading && (
+            {quizState.isLoading && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1131,12 +1173,12 @@ const Home: React.FC = () => {
           </AnimatePresence>
 
           <AnimatePresence>
-            {error && <ErrorDisplay error={error} onRetry={handleRetry} />}
+            {quizState.error && <ErrorDisplay error={quizState.error} onRetry={handleRetry} />}
           </AnimatePresence>
         </motion.section>
 
         <AnimatePresence>
-          {!isLoading && responseData && Array.isArray(responseData) && responseData.length > 0 ? (
+          {!quizState.isLoading && quizState.responseData && Array.isArray(quizState.responseData) && quizState.responseData.length > 0 ? (
             <motion.section
               id="quiz-section" 
               ref={quizSectionRef}
@@ -1144,7 +1186,7 @@ const Home: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ delay: 0.3, duration: 0.5 }}
-              className={`mt-8 md:mt-10 transition-all duration-500 relative mb-20 md:mb-32 ${activeSection === 'input' ? 'opacity-80 hover:opacity-100 filter hover:blur-none blur-[1px]' : ''}`}
+              className={`mt-8 md:mt-10 transition-all duration-500 relative mb-20 md:mb-32 ${quizState.activeSection === 'input' ? 'opacity-80 hover:opacity-100 filter hover:blur-none blur-[1px]' : ''}`}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 dark:from-blue-500/5 dark:to-indigo-500/5 rounded-3xl blur-3xl" />
               <div className="relative p-4 md:p-6 lg:p-8">
@@ -1158,7 +1200,7 @@ const Home: React.FC = () => {
                   <div className="p-6 md:p-10 bg-gradient-to-r from-blue-600 to-indigo-600 flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-xl md:text-2xl font-bold text-white flex items-center">
                       <Icons.AlertCircle className="h-6 w-6 md:h-7 md:w-7 mr-3 md:mr-5" />
-                      Your Quiz ({responseData.length} questions)
+                      Your Quiz ({quizState.responseData.length} questions)
                     </h2>
                     <Button
                       onClick={handleCreateNew}
@@ -1173,13 +1215,13 @@ const Home: React.FC = () => {
                   {/* Add quiz title input */}
                   <div className="px-6 md:px-8 pt-6">
                     <QuizTitleInput />
-                    {isSaving && <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">Saving quiz...</p>}
-                    {saveError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">Error saving: {saveError}</p>}
+                    {quizState.isSaving && <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">Saving quiz...</p>}
+                    {quizState.saveError && <p className="text-sm text-red-600 dark:text-red-400 mt-2">Error saving: {quizState.saveError}</p>}
                   </div>
                   
                   <QuizDisplay 
-                    questions={responseData} 
-                    originalText={text} 
+                    questions={quizState.responseData} 
+                    originalText={quizState.text} 
                     onSubmit={handleQuizSubmit} 
                   />
                 </div>
