@@ -1,5 +1,5 @@
 // frontend/src/pages/index.tsx
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { useRouter } from "next/router";
 import { Submission } from "@/components/form/Submission";
 import { QuizDisplay, QuizQuestion } from '@/components/quiz';
@@ -840,12 +840,17 @@ const Home: React.FC = () => {
   }, []);
 
   // UI Components
-  const FeatureCard: React.FC<{
+  const FeatureCard = memo(function FeatureCard({ 
+    icon, 
+    title, 
+    description, 
+    color 
+  }: { 
     icon: React.ReactNode;
     title: string;
     description: string;
     color: 'blue' | 'indigo' | 'purple';
-  }> = React.memo(({ icon, title, description, color }) => {
+  }) {
     const colorMap = {
       blue: {
         bg: 'bg-blue-100 dark:bg-blue-900/30',
@@ -880,80 +885,95 @@ const Home: React.FC = () => {
     );
   });
   
-  const DebugPanel: React.FC<{
+  const DebugPanel = memo(function DebugPanel({ 
+    debugInfo, 
+    onCopy, 
+    onHide 
+  }: { 
     debugInfo: DebugInfo;
     onCopy: () => void;
     onHide: () => void;
-  }> = React.memo(({ debugInfo, onCopy, onHide }) => (
-    <Card className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 overflow-auto max-h-[500px]">
-      <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Dev Debug Information</h3>
-      <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap">
-        {JSON.stringify(debugInfo, null, 2)}
-      </pre>
-      <div className="mt-4 flex space-x-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onCopy}
-          className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
-        >
-          Copy Debug Info
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onHide}
-          className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
-        >
-          Hide Debug Info
-        </Button>
-      </div>
-    </Card>
-  ));
+  }) {
+    return (
+      <Card className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 overflow-auto max-h-[500px]">
+        <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Dev Debug Information</h3>
+        <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap">
+          {JSON.stringify(debugInfo, null, 2)}
+        </pre>
+        <div className="mt-4 flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onCopy}
+            className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
+          >
+            Copy Debug Info
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onHide}
+            className="bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
+          >
+            Hide Debug Info
+          </Button>
+        </div>
+      </Card>
+    );
+  });
   
-  const ErrorDisplay: React.FC<{
+  const ErrorDisplay = memo(function ErrorDisplay({ 
+    error, 
+    onRetry 
+  }: { 
     error: string;
     onRetry: () => void;
-  }> = React.memo(({ error, onRetry }) => (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      className="my-12 md:my-16 p-6 md:p-10 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg shadow-md relative max-w-3xl mx-auto"
-    >
-      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
-        <div className="flex-shrink-0">
-          <Icons.AlertCircle className="h-7 w-7 md:h-8 md:w-8 text-red-500 animate-pulse" />
-        </div>
-        <div>
-          <h3 className="text-lg font-medium text-red-800 dark:text-red-400">Error Generating Quiz</h3>
-          <p className="mt-2 md:mt-4 text-red-700 dark:text-red-300">{error}</p>
-          <div className="mt-6 md:mt-8">
-            <Button
-              onClick={onRetry}
-              variant="destructive"
-              className="flex items-center px-6 py-3 h-auto transition-all duration-300 hover:scale-105"
-            >
-              Try Again
-            </Button>
+  }) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="w-full"
+      >
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={onRetry}
+                className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:text-red-200 dark:bg-red-800 dark:hover:bg-red-700"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </motion.div>
-  ));
+      </motion.div>
+    );
+  });
 
   // Add a title input component for the quiz section
-  const QuizTitleInput: React.FC = React.memo(() => (
-    <div className="mb-4">
-      <input
-        type="text"
-        value={quizState.quizTitle}
-        onChange={(e) => handleQuizTitleChange(e.target.value)}
-        placeholder="Enter a title for your quiz (optional)"
-        className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-      />
-    </div>
-  ));
+  const QuizTitleInput = memo(function QuizTitleInput() {
+    return (
+      <div className="mb-4">
+        <input
+          type="text"
+          value={quizState.quizTitle}
+          onChange={(e) => handleQuizTitleChange(e.target.value)}
+          placeholder="Enter a title for your quiz (optional)"
+          className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+        />
+      </div>
+    );
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
