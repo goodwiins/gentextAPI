@@ -1,0 +1,15 @@
+[Unit]
+Description=GenText API Service
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/root/gentextAPI/server
+Environment="PATH=/root/gentextAPI/server/venv/bin"
+ExecStart=/root/gentextAPI/server/venv/bin/uvicorn fastapi_app:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target 

@@ -1,0 +1,19 @@
+[Unit]
+Description=FastAPI GenText Application
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/root/gentextAPI/server
+ExecStart=/bin/bash /root/gentextAPI/server/start_fastapi.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fastapi
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/root/gentextAPI/server
+
+[Install]
+WantedBy=multi-user.target 

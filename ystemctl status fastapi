@@ -1,0 +1,20 @@
+[0;1;32m●[0m nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (]8;;file://ubuntu-s-2vcpu-2gb-nyc3-01/usr/lib/systemd/system/nginx.service/usr/lib/systemd/system/nginx.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;32mactive (running)[0m since Tue 2025-04-01 03:20:41 UTC; 8min ago
+ Invocation: 10c8a83858dc4b12bef42c4fbf3cca79
+       Docs: ]8;;man:nginx(8)man:nginx(8)]8;;
+    Process: 13974 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 13975 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 14007 (nginx)
+      Tasks: 5 (limit: 9485)
+     Memory: 4.1M (peak: 10M)
+        CPU: 74ms
+     CGroup: /system.slice/nginx.service
+             ├─[0;38;5;245m14007 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"[0m
+             ├─[0;38;5;245m14010 "nginx: worker process"[0m
+             ├─[0;38;5;245m14011 "nginx: worker process"[0m
+             ├─[0;38;5;245m14012 "nginx: worker process"[0m
+             └─[0;38;5;245m14013 "nginx: worker process"[0m
+
+Apr 01 03:20:41 ubuntu-s-2vcpu-2gb-nyc3-01 systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server...
+Apr 01 03:20:41 ubuntu-s-2vcpu-2gb-nyc3-01 systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
