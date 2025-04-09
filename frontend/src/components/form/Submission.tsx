@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ChangeEvent, useState, useEffect, useCallback, useMemo, memo } from "react";
+import { ChangeEvent, useState, useEffect, useCallback, useMemo, memo, forwardRef } from "react";
 import { toast } from "react-hot-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
@@ -48,70 +48,95 @@ const getReadabilityColor = (score: number): string => {
 };
 
 // Memoized sub-components
-const ReadabilityDisplay = memo(({ score }: { score: number | null }) => (
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 transform transition-all duration-300 hover:scale-105 hover:shadow-md ${
-          score ? 'bg-white dark:bg-gray-800' : 'bg-gray-100 dark:bg-gray-800/50'}`}>
-          <Info className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-          <span className={`text-sm font-medium ${
-            score ? getReadabilityColor(score) : 'text-gray-500 dark:text-gray-400'
-          }`}>
-            {score 
-              ? `Readability: ${getReadabilityLabel(score)} (${score})`
-              : 'Readability: N/A'
-            }
-          </span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent className="bg-indigo-50 dark:bg-indigo-900/90 border-indigo-200 dark:border-indigo-700 text-indigo-900 dark:text-indigo-100 p-3 shadow-lg">
-        <p className="text-sm max-w-xs">Flesch Reading Ease score measures how easy your text is to read. Higher scores mean easier readability.</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-));
+const ReadabilityDisplay = memo(function ReadabilityDisplay({ score }: { score: number | null }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 transform transition-all duration-300 hover:scale-105 hover:shadow-md ${
+            score ? 'bg-white dark:bg-gray-800' : 'bg-gray-100 dark:bg-gray-800/50'}`}>
+            <Info className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+            <span className={`text-sm font-medium ${
+              score ? getReadabilityColor(score) : 'text-gray-500 dark:text-gray-400'
+            }`}>
+              {score 
+                ? `Readability: ${getReadabilityLabel(score)} (${score})`
+                : 'Readability: N/A'
+              }
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent className="bg-indigo-50 dark:bg-indigo-900/90 border-indigo-200 dark:border-indigo-700 text-indigo-900 dark:text-indigo-100 p-3 shadow-lg">
+          <p className="text-sm max-w-xs">Flesch Reading Ease score measures how easy your text is to read. Higher scores mean easier readability.</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+});
 
-const StatsDisplay = memo(({ charCount, wordCount }: { charCount: number; wordCount: number }) => (
-  <div className="text-sm font-medium dark:text-gray-300 flex items-center space-x-4">
-    <span className={charCount > MAX_CHARS * 0.9 ? 'text-red-500 font-bold flex items-center gap-1 animate-pulse' : 'flex items-center gap-1'}>
-      {charCount > MAX_CHARS * 0.9 && <AlertCircle className="h-3.5 w-3.5" />}
-      {charCount.toLocaleString()}/{MAX_CHARS.toLocaleString()} chars
-    </span>
-    <span className="h-4 w-px bg-gray-300 dark:bg-gray-700"></span>
-    <span>{wordCount.toLocaleString()} words</span>
-  </div>
-));
-
-const ProgressDisplay = memo(({ charPercentage, charCount }: { charPercentage: number; charCount: number }) => (
-  <div className="mt-4">
-    <div className="flex justify-between items-center mb-1">
-      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-        Character limit: {charCount}/18,000
+const StatsDisplay = memo(function StatsDisplay({ 
+  wordCount, 
+  charCount, 
+  maxChars 
+}: { 
+  wordCount: number;
+  charCount: number;
+  maxChars: number;
+}) {
+  return (
+    <div className="text-sm font-medium dark:text-gray-300 flex items-center space-x-4">
+      <span className={charCount > maxChars * 0.9 ? 'text-red-500 font-bold flex items-center gap-1 animate-pulse' : 'flex items-center gap-1'}>
+        {charCount > maxChars * 0.9 && <AlertCircle className="h-3.5 w-3.5" />}
+        {charCount.toLocaleString()}/{maxChars.toLocaleString()} chars
       </span>
-      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-        {charPercentage.toFixed(0)}%
-      </span>
+      <span className="h-4 w-px bg-gray-300 dark:bg-gray-700"></span>
+      <span>{wordCount.toLocaleString()} words</span>
     </div>
-    <Progress 
-      value={charPercentage} 
-      className={`h-1.5 ${
-        charPercentage > 90 
-          ? 'bg-red-200 dark:bg-red-900/30' 
-          : 'bg-gray-100 dark:bg-gray-700'
-      }`}
-      indicatorClassName={`${
-        charPercentage > 90 
-          ? 'bg-red-500' 
-          : charPercentage > 70 
-            ? 'bg-amber-500' 
-            : 'bg-blue-500'
-      }`}
-    />
-  </div>
-));
+  );
+});
 
-const LoadingOverlay = memo(({ isLoading }: { isLoading: boolean }) => {
+const ProgressDisplay = memo(function ProgressDisplay({ 
+  charCount, 
+  maxChars 
+}: { 
+  charCount: number;
+  maxChars: number;
+}) {
+  const charPercentage = useMemo(() => 
+    Math.min(100, (charCount / maxChars) * 100),
+    [charCount]
+  );
+
+  return (
+    <div className="mt-4">
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+          Character limit: {charCount}/{maxChars}
+        </span>
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+          {charPercentage.toFixed(0)}%
+        </span>
+      </div>
+      <Progress 
+        value={charPercentage} 
+        className={`h-1.5 ${
+          charPercentage > 90 
+            ? 'bg-red-200 dark:bg-red-900/30' 
+            : 'bg-gray-100 dark:bg-gray-700'
+        }`}
+        indicatorClassName={`${
+          charPercentage > 90 
+            ? 'bg-red-500' 
+            : charPercentage > 70 
+              ? 'bg-amber-500' 
+              : 'bg-blue-500'
+        }`}
+      />
+    </div>
+  );
+});
+
+const LoadingOverlay = memo(function LoadingOverlay({ isLoading }: { isLoading: boolean }) {
   if (!isLoading) return null;
   
   return (
@@ -129,12 +154,15 @@ const LoadingOverlay = memo(({ isLoading }: { isLoading: boolean }) => {
   );
 });
 
-export const Submission = memo<SubmissionProps>(({ 
-  onSubmit, 
-  onTextChange,
-  isLoading = false,
-  text: externalText
-}) => {
+export const Submission = memo(forwardRef<HTMLTextAreaElement, SubmissionProps>(function Submission(
+  { 
+    onSubmit, 
+    onTextChange,
+    isLoading = false,
+    text: externalText
+  }, 
+  ref
+) {
   const [text, setText] = useState<string>(externalText || "");
   const [wordCount, setWordCount] = useState<number>(0);
   const [charCount, setCharCount] = useState<number>(0);
@@ -224,7 +252,7 @@ export const Submission = memo<SubmissionProps>(({
           <div className="flex items-center">
             <ReadabilityDisplay score={readabilityScore} />
           </div>
-          <StatsDisplay charCount={charCount} wordCount={wordCount} />
+          <StatsDisplay wordCount={wordCount} charCount={charCount} maxChars={MAX_CHARS} />
         </div>
         
         {/* Textarea */}
@@ -237,11 +265,12 @@ export const Submission = memo<SubmissionProps>(({
             value={text}
             onChange={handleTextChange}
             disabled={isLoading}
+            ref={ref}
           />
           <LoadingOverlay isLoading={isLoading} />
         </div>
         
-        <ProgressDisplay charPercentage={charPercentage} charCount={charCount} />
+        <ProgressDisplay charCount={charCount} maxChars={MAX_CHARS} />
         
         {/* Terms checkbox */}
         <div className="mt-6 flex items-start space-x-2">
@@ -283,4 +312,4 @@ export const Submission = memo<SubmissionProps>(({
       </div>
     </div>
   );
-}); 
+})); 
