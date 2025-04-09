@@ -12,10 +12,12 @@ const client = new Client()
     .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
     .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
 
-// Test the connection
-client.subscribe('*', (response) => {
-    console.log('Appwrite Response:', response);
-});
+// Only initialize subscription on the client side
+if (typeof window !== 'undefined') {
+    client.subscribe('*', (response) => {
+        console.log('Appwrite Response:', response);
+    });
+}
 
 export const account = new Account(client);
 export const databases = new Databases(client);

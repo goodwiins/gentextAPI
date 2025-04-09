@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Models } from "appwrite";
 import httpClient from '@/httpClient';
 import axiosRetry from 'axios-retry';
+import { quizService, CreateQuizRequest } from '@/lib/quizService';
 
 // Configure axios-retry for the httpClient
 axiosRetry(httpClient, {
@@ -80,7 +81,7 @@ function isObjectResponse(data: ApiResponseData): data is ApiResponseObject {
 
 // Add a type for saving quizzes
 interface SaveQuizRequest {
-  title?: string;
+  title: string;
   text: string;
   questions: QuizQuestion[];
   userId?: string;
@@ -327,14 +328,38 @@ const api = {
     questions: QuizQuestion[],
     authToken?: string
   ): Promise<unknown> {
-    return api.request<unknown>(
-      '/submit/answers',
-      {
-        method: 'POST',
-        body: JSON.stringify({ text, answers, questions }),
-      },
-      authToken
-    );
+    try {
+      // Format questions to proper JSON string format for Appwrite
+      const formattedQuestions = JSON.stringify(questions.map((q, index) => {
+        // The QuizDisplay component treats the original_sentence as the complete/correct answer
+        const userAnswer = answers[index] || '';
+        return {
+          original_sentence: q.original_sentence,
+          partial_sentence: q.partial_sentence,
+          false_sentences: q.false_sentences,
+          userAnswer: userAnswer,
+          // Check if user selected the correct answer (original sentence)
+          isCorrect: userAnswer === q.original_sentence
+        };
+      }));
+      
+      // Use the CreateQuizRequest interface directly
+      const result = await quizService.createQuiz({
+        title: 'Quiz Submission',
+        text,
+        questions: formattedQuestions,
+        userId: authToken || '',
+        createdAt: new Date().toISOString()
+      });
+      
+      return {
+        id: result.$id,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      throw error;
+    }
   },
   
   /**
@@ -344,10 +369,30 @@ const api = {
     quiz: SaveQuizRequest,
     authToken?: string
   ): Promise<{ id: string; success: boolean }> {
-    // Use HTTP client with retry already configured
-    return httpClient.post('/quiz/save', quiz, {
-      headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined
-    }).then(response => response.data);
+    try {
+      // Convert questions array to JSON string for Appwrite
+      const questionsJson = JSON.stringify(quiz.questions);
+      
+      // Create quiz data with required CreateQuizRequest structure
+      const quizData = {
+        title: quiz.title,
+        text: quiz.text,
+        questions: questionsJson,
+        userId: quiz.userId || '',
+        createdAt: quiz.createdAt || new Date().toISOString()
+      };
+      
+      // Use the quizService to save to Appwrite
+      const result = await quizService.createQuiz(quizData);
+      
+      return {
+        id: result.$id,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error saving quiz to Appwrite:', error);
+      throw error;
+    }
   }
 };
 
