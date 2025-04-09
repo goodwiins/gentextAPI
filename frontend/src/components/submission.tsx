@@ -8,6 +8,7 @@ import { toast } from "react-hot-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { AlertCircle, RefreshCw, Info, Sparkles, Send } from "lucide-react";
+import { motion } from "framer-motion";
 
 type SubmissionProps = {
   onSubmit: () => void;
@@ -161,11 +162,11 @@ export const Submission: React.FC<SubmissionProps> = ({
         </div>
         
         {/* Textarea */}
-        <div className="relative">
+        <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-lg opacity-30 dark:opacity-40 blur-sm group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
           
           <Textarea
-            className="mt-4 h-64 md:h-72 border dark:border-gray-700 p-5 text-base resize-none focus:ring-2 focus:ring-indigo-500 rounded-lg shadow-sm relative backdrop-blur-sm"
+            className="mt-4 h-64 md:h-72 border dark:border-gray-700 p-5 text-base resize-none focus:ring-2 focus:ring-indigo-500 rounded-lg shadow-sm relative backdrop-blur-sm transition-all duration-300 group-hover:shadow-md"
             placeholder="Paste your text here..."
             value={text}
             onChange={handleTextChange}
@@ -173,31 +174,43 @@ export const Submission: React.FC<SubmissionProps> = ({
           />
           {isLoading && (
             <div className="absolute inset-0 bg-black/5 dark:bg-black/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-xl animate-pulse border border-indigo-200 dark:border-indigo-800 flex items-center gap-3">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-xl animate-pulse border border-indigo-200 dark:border-indigo-800 flex items-center gap-3"
+              >
                 <RefreshCw className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
                 <span className="font-medium">Processing...</span>
-              </div>
+              </motion.div>
             </div>
           )}
         </div>
         
         {/* Progress bar */}
-        <div className="mt-3">
-          <Progress 
-            value={charPercentage} 
-            className="h-1.5 rounded-full overflow-hidden" 
-            color={charPercentage > 90 ? 'bg-rose-500' : charPercentage > 70 ? 'bg-amber-500' : 'bg-emerald-500'} 
-          />
-          <div className="flex justify-end mt-1">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              Character limit: {text.length}/18,000
+            </span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
               {charPercentage.toFixed(0)}%
             </span>
           </div>
+          <Progress 
+            value={charPercentage} 
+            className="h-2 rounded-full overflow-hidden" 
+            color={charPercentage > 90 ? 'bg-rose-500' : charPercentage > 70 ? 'bg-amber-500' : 'bg-emerald-500'} 
+          />
         </div>
         
         {/* Terms */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-5 mb-6 gap-4">
-          <div className="flex items-center space-x-3 group">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-6 mb-6 gap-4">
+          <motion.div 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center space-x-3 group"
+          >
             <Checkbox 
               id="terms" 
               disabled={isLoading}
@@ -211,7 +224,7 @@ export const Submission: React.FC<SubmissionProps> = ({
             >
               I agree to the terms of service
             </label>
-          </div>
+          </motion.div>
           <div>
             <Button
               variant="outline"

@@ -16,6 +16,7 @@ import axios from "axios"
 import { useRouter } from "next/router"
 import React, { useEffect, useState } from 'react';
 import { useAuthContext } from "@/context/auth-context";
+import { motion } from "framer-motion";
 
 // Add a constant for the default avatar
 const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0xMiAwYzYuNjI3IDAgMTIgNS4zNzMgMTIgMTJzLTUuMzczIDEyLTEyIDEyUzAgMTguNjI3IDAgMTIgNS4zNzMgMCAxMiAwek0wIDEyYzAgNi42MjcgNS4zNzMgMTIgMTIgMTJzMTItNS4zNzMgMTItMTItNS4zNzMtMTItMTItMTJTMCA1LjM3MyAwIDEyem0xMi0xLjVjMS4zOCAwIDIuNSAxLjEyIDIuNSAyLjVzLTEuMTIgMi41LTIuNSAyLjUtMi41LTEuMTItMi41LTIuNSAxLjEyLTIuNSAyLjUtMi41eiIvPjwvc3ZnPg==';
@@ -48,7 +49,12 @@ export default function Navbar() {
 
   return (
     authState.user ? (
-      <header className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm">
+      <motion.header 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm"
+      >
         <nav className="container mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Sheet>
@@ -60,7 +66,6 @@ export default function Navbar() {
               </SheetTrigger>
               <SheetContent side="left" className="w-72">
                 <div className="flex items-center space-x-2 mb-8">
-                  <LogoIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                   <span className="text-xl font-bold">genText AI</span>
                 </div>
                 <div className="flex flex-col space-y-4">
@@ -98,9 +103,8 @@ export default function Navbar() {
               </SheetContent>
             </Sheet>
 
-            <Link href="/" className="flex items-center space-x-2">
-              <LogoIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <span className="hidden md:inline-block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+            <Link href="/" className="group">
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 group-hover:from-indigo-600 group-hover:to-purple-600 dark:group-hover:from-indigo-400 dark:group-hover:to-purple-400 transition-all duration-300">
                 genText AI
               </span>
             </Link>
@@ -109,10 +113,10 @@ export default function Navbar() {
               <NavigationMenuList className="flex items-center space-x-1">
                 <NavigationMenuLink asChild>
                   <Link
-                    className={`inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors
+                    className={`inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-all duration-200
                       ${isCurrentRoute('/') 
-                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' 
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 shadow-sm' 
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-sm'}`}
                     href="/"
                   >
                     <HomeIcon className="h-4 w-4 mr-2" />
@@ -122,23 +126,10 @@ export default function Navbar() {
 
                 <NavigationMenuLink asChild>
                   <Link
-                    className={`inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors
-                      ${isCurrentRoute('/setting') 
-                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' 
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                    href="/setting"
-                  >
-                    <SettingsIcon className="h-4 w-4 mr-2" />
-                    Settings
-                  </Link>
-                </NavigationMenuLink>
-
-                <NavigationMenuLink asChild>
-                  <Link
-                    className={`inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors
+                    className={`inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-all duration-200
                       ${isCurrentRoute('/history') 
-                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' 
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 shadow-sm' 
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-sm'}`}
                     href="/history"
                   >
                     <HistoryIcon className="h-4 w-4 mr-2" />
@@ -152,17 +143,23 @@ export default function Navbar() {
           <div className="flex items-center space-x-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full overflow-hidden ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950 ring-gray-200 dark:ring-gray-800 transition-all duration-200 hover:ring-blue-500 dark:hover:ring-blue-400"
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 >
-                  <img
-                    alt="User Avatar"
-                    className="h-full w-full object-cover"
-                    src={authState.user?.prefs?.avatar || DEFAULT_AVATAR}
-                  />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-full overflow-hidden ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950 ring-gray-200 dark:ring-gray-800 transition-all duration-200 hover:ring-blue-500 dark:hover:ring-blue-400"
+                  >
+                    <img
+                      alt="User Avatar"
+                      className="h-full w-full object-cover"
+                      src={authState.user?.prefs?.avatar || DEFAULT_AVATAR}
+                    />
+                  </Button>
+                </motion.div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="flex items-center space-x-2">
@@ -178,6 +175,16 @@ export default function Navbar() {
                     <span className="text-xs text-gray-500 dark:text-gray-400">{authState.user?.email}</span>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link 
+                    href="/setting"
+                    className={`flex items-center ${isCurrentRoute('/setting') ? 'text-blue-600 dark:text-blue-400 font-medium' : ''}`}
+                  >
+                    <SettingsIcon className="h-4 w-4 mr-2" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={handleLogout}
                   className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300 focus:bg-red-50 dark:focus:bg-red-900/20"
@@ -189,7 +196,7 @@ export default function Navbar() {
             </DropdownMenu>
           </div>
         </nav>
-      </header>
+      </motion.header>
     ) : null
   )
 }
