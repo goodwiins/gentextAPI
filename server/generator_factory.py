@@ -6,13 +6,14 @@ from typing import Dict, List, Optional, Union, Any
 from functools import lru_cache
 import os
 from improved_generator import ImprovedFalseStatementGenerator
+from claude_generator import ClaudeFalseStatementGenerator
 
 logger = logging.getLogger(__name__)
 
 class StatementGeneratorFactory:
     """
     Factory class to provide statement generation strategies.
-    Currently supports GPT-2 based generation with improved network handling.
+    Currently supports GPT-2 and Claude based generation.
     """
     
     def __init__(self, max_workers: int = None, model_cache_size: int = 2):
@@ -27,7 +28,7 @@ class StatementGeneratorFactory:
         self.executor = ThreadPoolExecutor(max_workers=max_workers or os.cpu_count())
         self._model_cache_size = model_cache_size
         
-        # Initialize the GPT-2 generator
+        # Initialize the generators
         self._init_generators()
     
     def _init_generators(self) -> None:
@@ -35,6 +36,13 @@ class StatementGeneratorFactory:
         # Initialize the GPT-2 generator
         try:
             logger.info("Initializing GPT-2 generator...")
+            # Print the model directory to help debug
+            cache_dir = os.path.expanduser("~/.cache/huggingface")
+            logger.debug(f"HuggingFace cache directory: {cache_dir}")
+            logger.debug(f"Cache directory exists: {os.path.exists(cache_dir)}")
+            if os.path.exists(cache_dir):
+                logger.debug(f"Cache contents: {os.listdir(cache_dir)}")
+                
             self.generators['gpt2'] = ImprovedFalseStatementGenerator(
                 model_name="gpt2-medium", 
                 device=os.getenv("MODEL_DEVICE", None)
@@ -43,7 +51,35 @@ class StatementGeneratorFactory:
                        self.generators['gpt2'].device)
         except Exception as e:
             logger.error(f"Failed to initialize GPT-2 generator: {str(e)}", exc_info=True)
-            
+            # Print more details about the error
+            import traceback
+            logger.error(f"Detailed traceback: {traceback.format_exc()}")
+            logger.error(f"Error type: {type(e).__name__}")
+            # Try to initialize with a smaller model as fallback
+            try:
+                logger.info("Attempting fallback to smaller gpt2 model...")
+                self.generators['gpt2'] = ImprovedFalseStatementGenerator(
+                    model_name="gpt2", 
+                    device="cpu"
+                )
+                logger.info("Fallback to smaller model successful")
+            except Exception as e2:
+                logger.error(f"Fallback initialization also failed: {str(e2)}")
+                # We'll leave self.generators['gpt2'] unset
+                
+        # Initialize the Claude generator
+        try:
+            logger.info("Initializing Claude generator...")
+            self.generators['claude'] = ClaudeFalseStatementGenerator()
+            logger.info("Claude generator initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Claude generator: {str(e)}", exc_info=True)
+            # Print more details about the error
+            import traceback
+            logger.error(f"Detailed traceback: {traceback.format_exc()}")
+            logger.error(f"Error type: {type(e).__name__}")
+            # We'll leave self.generators['claude'] unset
+    
     @lru_cache(maxsize=32)
     def get_generator(self, generator_type: str = 'gpt2') -> Optional[ImprovedFalseStatementGenerator]:
         """

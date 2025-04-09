@@ -72,6 +72,35 @@ The application consists of two main components:
    npm run dev
    ```
 
+### Appwrite Setup
+
+This application uses Appwrite as its database and authentication service. Follow these steps to set up Appwrite:
+
+1. Create an account on [Appwrite](https://appwrite.io/) if you don't have one
+2. Create a new project in the Appwrite console
+3. Set up your environment variables:
+   ```bash
+   cd frontend
+   cp .env.example .env.local
+   # Edit .env.local with your Appwrite credentials
+   ```
+4. Add your Appwrite API key to the .env.local file:
+   ```
+   APPWRITE_API_KEY=your-api-key-here
+   ```
+5. Run the setup page to configure your database:
+   - Start your frontend server (`npm run dev`)
+   - Navigate to the `/setup` page in your browser
+   - Follow the instructions to set up the collection schema
+   - Create a test document to verify everything is working
+
+If you encounter field name errors in your Appwrite database, make sure the field names match exactly:
+- `userId` (not `user_id`)
+- `createdAt` (not `created_at`)
+- `title`
+- `text`
+- `questions`
+
 ## Features
 
 ### Core Functionality

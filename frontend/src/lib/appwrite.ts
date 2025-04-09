@@ -1,8 +1,17 @@
 import { Client, Account, ID, Models } from 'appwrite';
 
+// Extract environment variables with debugging
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
+
+// Log configuration for debugging
+console.log('Appwrite Configuration:');
+console.log(`- Endpoint: ${APPWRITE_ENDPOINT}`);
+console.log(`- Project ID: ${APPWRITE_PROJECT_ID ? '********' + APPWRITE_PROJECT_ID.slice(-4) : 'MISSING'}`);
+
 const client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID);
 
 export const account = new Account(client);
 
@@ -66,6 +75,18 @@ export const appwriteAuth = {
     // Login with retry logic
     login: async (email: string, password: string, retryCount = 0): Promise<Models.Session> => {
         try {
+            // Check for existing session and delete it first
+            try {
+                const sessions = await account.listSessions();
+                if (sessions.total > 0) {
+                    console.log('Found existing session, logging out first...');
+                    await account.deleteSession('current');
+                }
+            } catch (sessionError) {
+                // If there's an error checking sessions, proceed anyway
+                console.warn('Error checking existing sessions:', sessionError);
+            }
+            
             // Use createEmailPasswordSession instead of createSession
             const response = await account.createEmailPasswordSession(email, password);
             return response;
@@ -133,6 +154,18 @@ export const appwriteAuth = {
     // OAuth2 Login
     createOAuth2Session: async (provider: 'google' | 'github' | 'facebook' | 'apple') => {
         try {
+            // Check for existing session and delete it first to avoid conflicts
+            try {
+                const sessions = await account.listSessions();
+                if (sessions.total > 0) {
+                    console.log('Found existing session before OAuth, logging out first...');
+                    await account.deleteSession('current');
+                }
+            } catch (sessionError) {
+                // If there's an error checking sessions, proceed anyway
+                console.warn('Error checking existing sessions before OAuth:', sessionError);
+            }
+            
             return await account.createOAuth2Session(
                 provider as any,
                 `${window.location.origin}/`,
@@ -141,6 +174,36 @@ export const appwriteAuth = {
         } catch (error) {
             console.error('Appwrite service :: createOAuth2Session :: error', error);
             throw error;
+        }
+    },
+    
+    // Function to clean up sessions if there are any issues
+    cleanupSessions: async () => {
+        try {
+            console.log('Performing session cleanup...');
+            const sessions = await account.listSessions();
+            
+            if (sessions.total > 0) {
+                console.log(`Found ${sessions.total} active sessions, cleaning up...`);
+                
+                // Delete all sessions
+                await account.deleteSessions();
+                console.log('All sessions deleted successfully');
+                return true;
+            } else {
+                console.log('No active sessions found to clean up');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error cleaning up sessions:', error);
+            // Try one more direct approach if the first fails
+            try {
+                await account.deleteSession('current');
+                return true;
+            } catch (innerError) {
+                console.error('Failed to delete current session:', innerError);
+                return false;
+            }
         }
     }
 }; 

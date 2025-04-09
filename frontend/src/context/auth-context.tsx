@@ -1,5 +1,5 @@
 // src/context/auth-context.tsx
-import React, { useState, useContext, createContext, useEffect, ReactNode } from "react";
+import React, { useState, useContext, createContext, useEffect, ReactNode, useCallback } from "react";
 import { useRouter } from "next/router";
 import { appwriteAuth, account } from "@/lib/appwrite";
 import { Models } from "appwrite";
@@ -9,6 +9,7 @@ type AuthState = {
   user: Models.User<Models.Preferences> | null;
   session: Models.Session | null;
   isLoading: boolean;
+  error: string | null;
 };
 
 type AuthContextType = {
@@ -16,6 +17,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isUserAuthenticated: () => boolean;
+  clearAuthError: () => void;
 };
 
 type AuthProviderProps = {
@@ -28,29 +30,47 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
   const [authState, setAuthState] = useState<AuthState>({ 
     user: null,
     session: null,
-    isLoading: true 
+    isLoading: true,
+    error: null
   });
+  
+  const router = useRouter();
 
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
+  // Memoize checkAuthStatus to prevent unnecessary rerenders
+  const checkAuthStatus = useCallback(async () => {
     try {
       const user = await appwriteAuth.getCurrentUser();
       const session = await appwriteAuth.getCurrentSession();
-      setAuthState({ user, session, isLoading: false });
+      setAuthState(prev => ({ 
+        ...prev,
+        user, 
+        session, 
+        isLoading: false,
+        error: null
+      }));
     } catch (error: any) {
-      if (error.message?.includes('Rate limit')) {
-        // If we hit a rate limit during initial auth check, just set loading to false
-        setAuthState({ user: null, session: null, isLoading: false });
-      } else {
-        setAuthState({ user: null, session: null, isLoading: false });
-      }
+      console.log("Auth check error:", error?.message || "Unknown error");
+      setAuthState(prev => ({ 
+        ...prev,
+        user: null, 
+        session: null, 
+        isLoading: false,
+        error: null // Don't set error on initial auth check
+      }));
     }
-  };
+  }, []);
 
-  const login = async (email: string, password: string) => {
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
+
+  const clearAuthError = useCallback(() => {
+    setAuthState(prev => ({ ...prev, error: null }));
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+    
     try {
       // Create session first
       const session = await appwriteAuth.login(email, password);
@@ -68,7 +88,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       const finalUserId = /^[a-zA-Z0-9]/.test(formattedUserId) ? formattedUserId : `u${formattedUserId}`;
       
       // Set the auth state with the user data we have
-      setAuthState({ user, session, isLoading: false });
+      setAuthState({ user, session, isLoading: false, error: null });
 
       // Check if we need to redirect to complete profile
       const prefs = user.prefs as Record<string, any>;
@@ -82,42 +102,71 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error('PROFILE_INCOMPLETE');
       }
     } catch (error: any) {
+      let errorMessage = "Unknown error occurred";
+      
       if (error.message === 'PROFILE_INCOMPLETE') {
-        throw new Error('Please complete your profile to continue.');
+        errorMessage = 'Please complete your profile to continue.';
       } else if (error.message?.includes('Rate limit')) {
-        throw new Error('Too many login attempts. Please try again in a few moments.');
+        errorMessage = 'Too many login attempts. Please try again in a few moments.';
       } else if (error.message?.includes('Invalid credentials')) {
-        throw new Error('Invalid email or password. Please try again.');
+        errorMessage = 'Invalid email or password. Please try again.';
       } else if (error.message?.includes('User not found')) {
-        throw new Error('Account not found. Please check your email or sign up.');
+        errorMessage = 'Account not found. Please check your email or sign up.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
+      
+      console.error("Login error:", errorMessage);
+      setAuthState(prev => ({ 
+        ...prev, 
+        user: null,
+        session: null,
+        isLoading: false, 
+        error: errorMessage 
+      }));
+      
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
+    setAuthState(prev => ({ ...prev, isLoading: true }));
+    
     try {
       await appwriteAuth.logout();
-      setAuthState({ user: null, session: null, isLoading: false });
+      setAuthState({ user: null, session: null, isLoading: false, error: null });
+      
+      // Redirect to login page after logout
+      router.push('/login');
     } catch (error: any) {
-      if (error.message?.includes('Rate limit')) {
-        throw new Error('Too many logout attempts. Please try again in a few moments.');
-      }
+      const errorMessage = error.message?.includes('Rate limit')
+        ? 'Too many logout attempts. Please try again in a few moments.'
+        : error.message || 'Failed to logout';
+        
+      setAuthState(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        error: errorMessage
+      }));
+      
       throw error;
     }
-  };
+  }, [router]);
 
-  const isUserAuthenticated = (): boolean => {
+  const isUserAuthenticated = useCallback((): boolean => {
     return !!authState.user && !!authState.session;
+  }, [authState.user, authState.session]);
+
+  const contextValue = {
+    authState,
+    login,
+    logout,
+    isUserAuthenticated,
+    clearAuthError
   };
 
   return (
-    <AuthContext.Provider value={{
-      authState,
-      login,
-      logout,
-      isUserAuthenticated
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

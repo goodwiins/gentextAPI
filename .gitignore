@@ -58,3 +58,16 @@ ENV/
 
 # Generated question data
 /data/generated/
+
+# Environment files
+server/set_env.sh
+*.env
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+
+# OS files
+Thumbs.db

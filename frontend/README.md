@@ -1,96 +1,143 @@
-# GenText API - Quiz Generation Platform
+# GenText API Frontend
 
-A web application that generates quiz questions from text input using AI technology. Built with Next.js (frontend) and Python Flask (backend).
+A modern, responsive frontend application for the GenText API quiz generation platform. Built with Next.js, TypeScript, and TailwindCSS.
 
-## Features
+## 🚀 Features
 
-- Text-based quiz generation
-- Interactive quiz interface
-- User authentication
-- Real-time processing
-- Responsive design
+- Modern, responsive UI with TailwindCSS
+- Type-safe development with TypeScript
+- Component-based architecture
+- State management with React Query
+- Authentication with NextAuth.js
+- Beautiful UI components with Radix UI
+- Form handling and validation
+- Real-time updates and notifications
+- Responsive design for all devices
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- **Frontend**: Next.js, TypeScript, TailwindCSS
-- **Backend**: Python Flask, SQLAlchemy
-- **Database**: SQLite
-- **Authentication**: JWT
+- **Framework**: Next.js 15
+- **Language**: TypeScript
+- **Styling**: TailwindCSS
+- **UI Components**: Radix UI
+- **State Management**: React Query
+- **Authentication**: NextAuth.js
+- **HTTP Client**: Axios
+- **Testing**: Vitest, React Testing Library
+- **Animation**: Framer Motion
+- **Notifications**: React Hot Toast
 
-## Prerequisites
+## 📁 Project Structure
 
-- Node.js 18+ 
-- Python 3.8+
-- Redis (for session management)
+```
+src/
+├── api/          # API integration and endpoints
+├── components/   # Reusable UI components
+├── constants/    # Application constants
+├── context/      # React Context providers
+├── features/     # Feature-specific components
+├── hooks/        # Custom React hooks
+├── lib/          # Utility libraries
+├── pages/        # Next.js pages
+├── shared/       # Shared components and utilities
+├── store/        # State management
+├── styles/       # Global styles
+├── types/        # TypeScript type definitions
+└── utils/        # Utility functions
+```
 
-## Installation
+## 🚀 Getting Started
 
-### Frontend Setup
+### Prerequisites
 
+- Node.js 18 or higher
+- npm or yarn package manager
+
+### Installation
+
+1. Clone the repository:
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/gentextAPI.git
 cd gentextAPI/frontend
-
-# Install dependencies
-npm install
-
-# Create .env.local file
-cp .env.example .env.local
-
-# Start development server
-npm run dev
 ```
 
-### Backend Setup
-
+2. Install dependencies:
 ```bash
-# Navigate to server directory
-cd ../server
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-
-# Start the server
-python app.py
+npm install
+# or
+yarn install
 ```
 
-## Usage
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-1. Open [http://localhost:3000](http://localhost:3000) in your browser
-2. Log in or create an account
-3. Paste your text in the input field
-4. Click "Generate Quiz" to create questions
-5. Answer the generated questions
-6. Submit your answers to see results
+4. Start the development server:
+```bash
+npm run dev
+# or
+yarn dev
+```
 
-## Development
+The application will be available at [http://localhost:3000](http://localhost:3000).
+
+## 🧪 Testing
 
 ```bash
 # Run tests
 npm test
+# or
+yarn test
+```
 
-# Build for production
+## 🏗️ Building for Production
+
+```bash
+# Build the application
 npm run build
+# or
+yarn build
 
 # Start production server
 npm start
+# or
+yarn start
 ```
 
-## API Endpoints
+## 📝 Development Guidelines
 
-- `POST /api/v2/process_text` - Generate quiz from text
-- `POST /api/auth/login` - User authentication
-- `POST /api/auth/register` - User registration
+### Code Style
 
-## Contributing
+- Follow TypeScript best practices
+- Use functional components with hooks
+- Implement proper error handling
+- Write meaningful comments
+- Follow the existing code structure
+
+### Component Structure
+
+- Keep components small and focused
+- Use TypeScript interfaces for props
+- Implement proper error boundaries
+- Follow the atomic design principle
+
+### State Management
+
+- Use React Query for server state
+- Implement React Context for global state
+- Keep component state local when possible
+- Follow proper state management patterns
+
+## 🔧 Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm test` - Run tests
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -98,12 +145,13 @@ npm start
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - [Next.js](https://nextjs.org/)
-- [Flask](https://flask.palletsprojects.com/)
 - [TailwindCSS](https://tailwindcss.com/)
+- [Radix UI](https://www.radix-ui.com/)
+- [React Query](https://tanstack.com/query/latest)

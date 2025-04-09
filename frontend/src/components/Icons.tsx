@@ -154,4 +154,94 @@ export const Icons = {
       <text x="3" y="12" fontSize="24" fontFamily="Arial" fill="currentColor">Aa</text>
     </svg>
   ),
+
+  Bug: (props: IconProps) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M8 2l1.88 1.88" />
+      <path d="M14.12 3.88L16 2" />
+      <path d="M9 7.13v-1a3.003 3.003 0 116 0v1" />
+      <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6z" />
+      <path d="M20 13h-2" />
+      <path d="M6 13H4" />
+      <path d="M14 17h-4" />
+      <path d="M12 20v-7" />
+    </svg>
+  ),
+
+  RefreshCw: (props: IconProps) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M21 2v6h-6" />
+      <path d="M3 12a9 9 0 0115-6.7l3 2.7" />
+      <path d="M3 22v-6h6" />
+      <path d="M21 12a9 9 0 01-15 6.7l-3-2.7" />
+    </svg>
+  ),
+
+  FileQuestion: (props: IconProps) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
+      <path d="M10 10.3c.2-.4.5-.8.9-1a2.1 2.1 0 012.6.4c.3.4.5.8.5 1.3 0 1.3-2 2-2 2" />
+      <path d="M12 17h.01" />
+    </svg>
+  ),
+
+  Eye: (props: IconProps) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+
+  Trash: (props: IconProps) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  ),
 }; 

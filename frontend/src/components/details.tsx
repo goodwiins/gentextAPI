@@ -303,7 +303,7 @@ export default function Details() {
                   <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800/50 p-5 rounded-lg mt-6">
                     <p className="text-base text-yellow-800 dark:text-yellow-200 flex items-center">
                       <Icons.AlertCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-                      Use a strong password that you don't use for other websites
+                      Use a strong password that you don&apos;t use for other websites
                     </p>
                   </div>
                 </div>
