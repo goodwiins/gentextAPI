@@ -1,4 +1,3 @@
-// frontend/src/components/QuizDisplay.tsx
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -76,7 +75,7 @@ const QuizDisplay: React.FC<QuizDisplayProps> = ({
             No valid questions available
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            We couldn't find any valid questions to display. 
+            We couldn&apos;t find any valid questions to display. 
             Please try generating questions again or contact support if the issue persists.
           </p>
         </div>
@@ -202,78 +201,52 @@ const QuizDisplay: React.FC<QuizDisplayProps> = ({
               </div>
             </label>
 
-            {/* False Answers */}
-            {hasFalseSentences ? (
-              currentQuestion.false_sentences.map((sentence, optionIndex) => (
-                <label 
-                  key={optionIndex} 
-                  className={`block relative rounded-lg border-2 p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-md
-                    ${selectedAnswers[currentQuestionIndex] === `option-${optionIndex}`
-                      ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500"}`}
-                >
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      className="sr-only"
-                      name={`question-${currentQuestionIndex}`}
-                      value={`option-${optionIndex}`}
-                      checked={selectedAnswers[currentQuestionIndex] === `option-${optionIndex}`}
-                      onChange={() => handleAnswerSelection(currentQuestionIndex, `option-${optionIndex}`)}
-                    />
-                    <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-all duration-300
-                      ${selectedAnswers[currentQuestionIndex] === `option-${optionIndex}`
-                        ? "border-red-500 bg-red-500 scale-110"
-                        : "border-gray-300 dark:border-gray-600"}`}
-                    >
-                      {selectedAnswers[currentQuestionIndex] === `option-${optionIndex}` && (
-                        <X className="w-4 h-4 text-white" />
-                      )}
-                    </div>
-                    <span className="text-lg text-gray-900 dark:text-gray-100">
-                      {sentence || "No answer available"}
-                    </span>
-                  </div>
-                </label>
-              ))
-            ) : (
-              <div className="p-5 border-2 border-yellow-200 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800">
+            {/* False Sentences */}
+            {hasFalseSentences && currentQuestion.false_sentences.map((sentence, idx) => (
+              <label
+                key={idx}
+                className={`block relative rounded-lg border-2 p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-md
+                  ${selectedAnswers[currentQuestionIndex] === `false_${idx}` 
+                    ? "border-red-400 bg-red-50 dark:bg-red-900/10" 
+                    : "border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500"}`}
+              >
                 <div className="flex items-center">
-                  <AlertTriangle className="w-6 h-6 text-yellow-500 mr-3" />
-                  <span className="text-yellow-800 dark:text-yellow-300">
-                    No alternative answers available for this question
+                  <input
+                    type="radio"
+                    className="sr-only"
+                    name={`question-${currentQuestionIndex}`}
+                    value={`false_${idx}`}
+                    checked={selectedAnswers[currentQuestionIndex] === `false_${idx}`}
+                    onChange={() => handleAnswerSelection(currentQuestionIndex, `false_${idx}`)}
+                  />
+                  <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center transition-all duration-300
+                    ${selectedAnswers[currentQuestionIndex] === `false_${idx}`
+                      ? "border-red-400 bg-red-400 scale-110"
+                      : "border-gray-300 dark:border-gray-600"}`}
+                  >
+                    {selectedAnswers[currentQuestionIndex] === `false_${idx}` && (
+                      <X className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                  <span className="text-lg text-gray-900 dark:text-gray-100">
+                    {sentence}
                   </span>
                 </div>
-              </div>
-            )}
+              </label>
+            ))}
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          {/* Navigation */}
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
-              variant="outline"
               onClick={handlePrevious}
               disabled={currentQuestionIndex === 0}
-              className="w-full sm:w-auto flex items-center justify-center space-x-2 h-12 px-6 disabled:opacity-50 transition-all duration-300 hover:-translate-y-1 disabled:hover:translate-y-0"
+              variant="outline"
+              className="flex items-center space-x-2 h-12 px-6"
             >
               <ChevronLeft className="w-5 h-5" />
               <span>Previous</span>
             </Button>
-
-            <div className="hidden sm:flex items-center justify-center">
-              <div className="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-700/50">
-                {Array.from({ length: validQuestions.length }, (_, i) => (
-                  <span 
-                    key={i} 
-                    className={`inline-block w-2.5 h-2.5 rounded-full mx-1 transition-all duration-300 ${
-                      i === currentQuestionIndex ? "bg-blue-500 scale-125" : i in selectedAnswers ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
 
             {currentQuestionIndex === validQuestions.length - 1 ? (
               <Button
@@ -307,4 +280,4 @@ const QuizDisplay: React.FC<QuizDisplayProps> = ({
   );
 };
 
-export default QuizDisplay;
+export default QuizDisplay; 

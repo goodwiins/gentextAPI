@@ -163,7 +163,7 @@ export default function History() {
           ) : quizzes.length === 0 ? (
             <div className="py-8 space-y-4 text-center">
               <Icons.FileQuestion className="h-16 w-16 mx-auto text-gray-400" />
-              <p className="text-gray-600 dark:text-gray-400">You haven't created any quizzes yet.</p>
+              <p className="text-gray-600 dark:text-gray-400">You haven&apos;t created any quizzes yet.</p>
               <Button onClick={() => router.push('/')}>
                 Create Your First Quiz
               </Button>

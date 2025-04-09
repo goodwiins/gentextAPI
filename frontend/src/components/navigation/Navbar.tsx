@@ -4,15 +4,13 @@
 * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
 */
 import { Button } from "@/components/ui/button"
-import Image from "next/image"
 import { SheetTrigger, SheetContent, Sheet } from "@/components/ui/sheet"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
-import { Search , LogOut } from "lucide-react"
+import { Search, LogOut } from "lucide-react"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { NavigationMenuLink, NavigationMenuList, NavigationMenu } from "@/components/ui/navigation-menu"
 import { JSX, SVGProps } from "react"
-import axios from "axios"
 import { useRouter } from "next/router"
 import React, { useEffect, useState } from 'react';
 import { useAuthContext } from "@/context/auth-context";
@@ -198,7 +196,7 @@ export default function Navbar() {
         </nav>
       </motion.header>
     ) : null
-  )
+  );
 }
 
 function MenuIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
@@ -236,11 +234,19 @@ function LogoIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <line x1="10" y1="9" x2="8" y2="9" />
+      <path d="M3 6.2c0-1.12 0-1.68.218-2.108a2 2 0 0 1 .874-.874C4.52 3 5.08 3 6.2 3h11.6c1.12 0 1.68 0 2.108.218a2 2 0 0 1 .874.874C21 4.52 21 5.08 21 6.2v11.6c0 1.12 0 1.68-.218 2.108a2 2 0 0 1-.874.874C19.48 21 18.92 21 17.8 21H6.2c-1.12 0-1.68 0-2.108-.218a2 2 0 0 1-.874-.874C3 19.48 3 18.92 3 17.8V6.2Z" />
+      <path d="M9 9h.01" />
+      <path d="M3 9h.01" />
+      <path d="M15 9h.01" />
+      <path d="M21 9h.01" />
+      <path d="M9 3v.01" />
+      <path d="M9 21v.01" />
+      <path d="M15 3v.01" />
+      <path d="M15 21v.01" />
+      <path d="M3 15h.01" />
+      <path d="M9 15h.01" />
+      <path d="M15 15h.01" />
+      <path d="M21 15h.01" />
     </svg>
   )
 }
@@ -299,8 +305,9 @@ function HistoryIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" />
-      <polyline points="12 7 12 12 15 15" />
+      <path d="M3 3v5h5" />
+      <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+      <path d="M12 7v5l4 2" />
     </svg>
   )
-}
+} 

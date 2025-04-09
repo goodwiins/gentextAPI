@@ -1,9 +1,9 @@
 // frontend/src/pages/index.tsx
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from "next/router";
-import { Submission } from "@/components/submission";
-import QuizDisplay, { QuizQuestion } from '@/components/QuizDisplay';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Submission } from "@/components/form/Submission";
+import { QuizDisplay, QuizQuestion } from '@/components/quiz';
+import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from "@/context/auth-context";
 import { Icons } from '@/components/Icons';
@@ -415,16 +415,7 @@ const Home: React.FC = () => {
   // Determine if in development environment
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  useEffect(() => {
-    if (!authState.isLoading && !authState.user) {
-      router.push("/login");
-    } else if (authState.user) {
-      // Fetch user stats if user is logged in
-      fetchUserStats();
-    }
-  }, [authState, router]);
-
-  const fetchUserStats = async () => {
+  const fetchUserStats = useCallback(async () => {
     try {
       // Check if we have a valid session before making the API call
       if (!authState.session || !authState.session.$id) {
@@ -444,7 +435,16 @@ const Home: React.FC = () => {
     } catch (error) {
       console.error('Error fetching user stats:', error);
     }
-  };
+  }, [authState.session, setUserStats]);
+
+  useEffect(() => {
+    if (!authState.isLoading && !authState.user) {
+      router.push("/login");
+    } else if (authState.user) {
+      // Fetch user stats if user is logged in
+      fetchUserStats();
+    }
+  }, [authState, router, fetchUserStats]);
 
   const handleSubmit = async () => {
     if (!text.trim()) {
@@ -934,13 +934,14 @@ const Home: React.FC = () => {
         >
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-500/5 dark:to-indigo-500/5 rounded-3xl blur-3xl" />
           <div className="relative py-12 md:py-16">
-            <motion.div 
-              className="flex items-center justify-center space-x-4 mb-8"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 200 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex flex-col items-center justify-center text-center"
             >
               <motion.div
+                className="flex items-center justify-center mb-4"
                 animate={{ 
                   y: [0, -10, 0],
                   rotate: [0, 5, 0]
@@ -959,14 +960,51 @@ const Home: React.FC = () => {
               </h1>
             </motion.div>
             
-            <motion.p 
-              className="mt-6 md:mt-8 max-w-2xl mx-auto text-lg md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed"
+            <motion.div 
+              className="mt-6 md:mt-8 max-w-2xl mx-auto relative"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.5 }}
             >
-              Generate interactive quizzes instantly from any text to boost your learning.
-            </motion.p>
+              {/* Decorative elements */}
+              <div className="absolute -top-4 -left-4 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 opacity-70"></div>
+              <div className="absolute -bottom-4 -right-4 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 opacity-70"></div>
+              
+              {/* Tagline with enhanced styling */}
+              <div className="relative z-10">
+                <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed px-4 py-6 rounded-xl bg-gradient-to-r from-blue-50/50 via-transparent to-purple-50/50 dark:from-blue-900/20 dark:via-transparent dark:to-purple-900/20 border border-gray-100 dark:border-gray-800 shadow-sm">
+                  <span className="font-medium text-blue-600 dark:text-blue-400">Generate</span> interactive quizzes <span className="font-medium text-indigo-600 dark:text-indigo-400">instantly</span> from any text to <span className="font-medium text-purple-600 dark:text-purple-400">boost your learning</span>.
+                </p>
+                
+                {/* Feature highlights */}
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <motion.div 
+                    className="flex items-center px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  >
+                    <Icons.RefreshCw className="h-4 w-4 mr-1.5" />
+                    <span>Instant Generation</span>
+                  </motion.div>
+                  <motion.div 
+                    className="flex items-center px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-sm"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  >
+                    <Icons.Type className="h-4 w-4 mr-1.5" />
+                    <span>AI-Powered</span>
+                  </motion.div>
+                  <motion.div 
+                    className="flex items-center px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-sm"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  >
+                    <Icons.FileQuestion className="h-4 w-4 mr-1.5" />
+                    <span>Any Text Source</span>
+                  </motion.div>
+                </div>
+              </div>
+            </motion.div>
             
             <motion.div 
               className="mt-8 md:mt-10 flex flex-wrap justify-center gap-4 md:gap-6"
@@ -976,7 +1014,7 @@ const Home: React.FC = () => {
             >
               {authState.user && (
                 <div className="flex flex-wrap justify-center gap-4 md:gap-6">
-                  <motion.div
+                  <motion.div 
                     whileHover={{ y: -5, scale: 1.05 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ type: "spring", stiffness: 400, damping: 15 }}
@@ -986,7 +1024,7 @@ const Home: React.FC = () => {
                       <span className="font-semibold text-blue-600 dark:text-blue-400">{userStats.quizzes}</span> Quizzes
                     </Badge>
                   </motion.div>
-                  <motion.div
+                  <motion.div 
                     whileHover={{ y: -5, scale: 1.05 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ type: "spring", stiffness: 400, damping: 15 }}
@@ -1086,7 +1124,7 @@ const Home: React.FC = () => {
                 <LoadingSpinner message="Processing your text..." />
                 <p className="mt-8 md:mt-10 text-gray-500 dark:text-gray-400 text-sm max-w-lg text-center">
                   This may take a few moments depending on the length of your text. 
-                  We're analyzing your content to generate relevant questions.
+                  We&apos;re analyzing your content to generate relevant questions.
                 </p>
               </motion.div>
             )}

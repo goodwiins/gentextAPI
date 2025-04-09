@@ -1,4 +1,3 @@
-// frontend/src/components/submission.tsx
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,24 +41,24 @@ export const Submission: React.FC<SubmissionProps> = ({
   }, [externalText]);
 
   useEffect(() => {
-    if (text.trim()) {
+    if (text.trim().length > 0) {
+      const calculateReadabilityScore = (text: string) => {
+        const sentences = text.split(/[.!?]+/).filter(Boolean).length;
+        const words = text.trim().split(/\s+/).filter(Boolean).length;
+        const syllables = countSyllables(text);
+        
+        if (words === 0 || sentences === 0) return;
+        
+        // Flesch Reading Ease score
+        const score = 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words);
+        setReadabilityScore(Math.min(100, Math.max(0, Math.round(score))));
+      };
+
       calculateReadabilityScore(text);
     } else {
       setReadabilityScore(null);
     }
   }, [text]);
-
-  const calculateReadabilityScore = (text: string) => {
-    const sentences = text.split(/[.!?]+/).filter(Boolean).length;
-    const words = text.trim().split(/\s+/).filter(Boolean).length;
-    const syllables = countSyllables(text);
-    
-    if (words === 0 || sentences === 0) return;
-    
-    // Flesch Reading Ease score
-    const score = 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words);
-    setReadabilityScore(Math.min(100, Math.max(0, Math.round(score))));
-  };
 
   const countSyllables = (text: string): number => {
     return text.toLowerCase()
@@ -199,47 +198,39 @@ export const Submission: React.FC<SubmissionProps> = ({
           </div>
           <Progress 
             value={charPercentage} 
-            className="h-2 rounded-full overflow-hidden" 
-            color={charPercentage > 90 ? 'bg-rose-500' : charPercentage > 70 ? 'bg-amber-500' : 'bg-emerald-500'} 
+            className={`h-1.5 ${
+              charPercentage > 90 
+                ? 'bg-red-200 dark:bg-red-900/30' 
+                : 'bg-gray-100 dark:bg-gray-700'
+            }`}
+            indicatorClassName={`${
+              charPercentage > 90 
+                ? 'bg-red-500' 
+                : charPercentage > 70 
+                  ? 'bg-amber-500' 
+                  : 'bg-blue-500'
+            }`}
           />
         </div>
         
-        {/* Terms */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-6 mb-6 gap-4">
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center space-x-3 group"
+        {/* Terms checkbox */}
+        <div className="mt-6 flex items-start space-x-2">
+          <Checkbox 
+            id="terms" 
+            className="mt-0.5"
+            checked={termsAccepted}
+            onCheckedChange={(checked) => setTermsAccepted(!!checked)}
+            disabled={isLoading}
+          />
+          <label 
+            htmlFor="terms" 
+            className="text-sm text-gray-600 dark:text-gray-400 leading-tight cursor-pointer"
           >
-            <Checkbox 
-              id="terms" 
-              disabled={isLoading}
-              checked={termsAccepted}
-              onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-              className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 transition-all duration-200 hover:scale-110"
-            />
-            <label 
-              className="text-sm dark:text-gray-300 cursor-pointer select-none group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200" 
-              htmlFor="terms"
-            >
-              I agree to the terms of service
-            </label>
-          </motion.div>
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`group flex items-center gap-2 transition-all duration-300 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:scale-105'}`}
-              onClick={isLoading ? undefined : handleClearText}
-              disabled={isLoading || !text.trim()}
-            >
-              <RefreshCw className={`w-4 h-4 ${!isLoading && text.trim() ? 'group-hover:rotate-180 transition-transform duration-300' : ''}`} />
-              Clear text
-            </Button>
-          </div>
+            I understand that the generated quiz is for educational purposes only and may not be 100% accurate. By using this service, I agree to the <a href="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">Terms of Service</a>.
+          </label>
         </div>
         
-        {/* Submit */}
+        {/* Action buttons */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t dark:border-gray-700">
           <div className="w-full sm:w-auto">
             <Badge variant="secondary" className={`px-4 py-2 text-sm font-medium ${isLoading ? 'animate-pulse' : ''} w-full sm:w-auto flex justify-center items-center gap-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50 shadow-sm`}>
@@ -287,4 +278,4 @@ export const Submission: React.FC<SubmissionProps> = ({
       </div>
     </div>
   );
-};
+}; 

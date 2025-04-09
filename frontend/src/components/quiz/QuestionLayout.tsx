@@ -56,4 +56,4 @@ export const QuestionLayout: React.FC<QuestionLayoutProps> = ({ data }) => {
       </div>
     </div>
   );
-};
+}; 
