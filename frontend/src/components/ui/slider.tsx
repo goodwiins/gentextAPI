@@ -25,17 +25,20 @@ const sizeStyles = {
   },
 };
 
-const SliderTooltip = React.memo<{ value: number; formatValue?: (value: number) => string }>(
-  ({ value, formatValue }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 10 }}
-      className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-primary text-primary-foreground text-xs"
-    >
-      {formatValue ? formatValue(value) : value}
-    </motion.div>
-  )
+const SliderTooltip = React.memo<{ value: number | undefined; formatValue?: (value: number) => string }>(
+  ({ value, formatValue }) => {
+    const displayValue = typeof value === 'number' ? value : 0;
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-primary text-primary-foreground text-xs"
+      >
+        {formatValue ? formatValue(displayValue) : displayValue}
+      </motion.div>
+    );
+  }
 );
 SliderTooltip.displayName = 'SliderTooltip';
 
@@ -54,6 +57,9 @@ const Slider = React.memo<SliderProps>(
     const [hoveredThumb, setHoveredThumb] = React.useState<number | null>(null);
     const value = Array.isArray(props.value) ? props.value[0] : props.value;
     const styles = sizeStyles[size];
+
+    // Ensure value is a number
+    const normalizedValue = typeof value === 'number' ? value : 0;
 
     return (
       <SliderPrimitive.Root
@@ -98,7 +104,7 @@ const Slider = React.memo<SliderProps>(
           onMouseLeave={() => setHoveredThumb(null)}
         >
           {showTooltip && hoveredThumb === 0 && (
-            <SliderTooltip value={value} formatValue={formatValue} />
+            <SliderTooltip value={normalizedValue} formatValue={formatValue} />
           )}
         </SliderPrimitive.Thumb>
       </SliderPrimitive.Root>

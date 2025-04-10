@@ -104,7 +104,7 @@ const ProgressDisplay = memo(function ProgressDisplay({
 }) {
   const charPercentage = useMemo(() => 
     Math.min(100, (charCount / maxChars) * 100),
-    [charCount]
+    [charCount, maxChars]
   );
 
   return (

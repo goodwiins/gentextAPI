@@ -45,6 +45,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface FormData {
   firstName: string
@@ -302,13 +303,13 @@ export default function Setting() {
                           <div className="relative">
                             <Input
                               id="avatar"
-                              name="avatar"
+                              type="text"
                               placeholder="Enter image URL for your profile picture"
                               value={formData.avatar}
-                              onChange={handleInputChange}
-                              className="pl-10 border-gray-300 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors duration-200"
+                              onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
+                              className="pl-10"
                             />
-                            <Image className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                           </div>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             Enter a valid image URL to update your profile picture.

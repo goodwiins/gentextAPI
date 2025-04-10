@@ -18,19 +18,22 @@ const statusColors = {
   warning: "bg-yellow-600 dark:bg-yellow-500"
 };
 
-const ProgressLabel = React.memo<{ value: number; position: 'top' | 'right' }>(
-  ({ value, position }) => (
-    <span 
-      className={cn(
-        "text-sm font-medium text-slate-700 dark:text-slate-200",
-        position === 'top' ? "mb-2 block" : "ml-4"
-      )}
-      role="status"
-      aria-label={`Progress: ${value}%`}
-    >
-      {value}%
-    </span>
-  )
+const ProgressLabel = React.memo<{ value: number | null; position: 'top' | 'right' }>(
+  ({ value, position }) => {
+    const displayValue = value !== null ? Math.round(value) : 0;
+    return (
+      <span 
+        className={cn(
+          "text-sm font-medium text-slate-700 dark:text-slate-200",
+          position === 'top' ? "mb-2 block" : "ml-4"
+        )}
+        role="status"
+        aria-label={`Progress: ${displayValue}%`}
+      >
+        {displayValue}%
+      </span>
+    );
+  }
 );
 ProgressLabel.displayName = 'ProgressLabel';
 
@@ -48,6 +51,9 @@ const Progress = React.memo<ProgressProps>(
     animate = true,
     ...props 
   }, ref) => {
+    // Ensure value is a number between 0 and 100
+    const normalizedValue = value !== null ? Math.min(100, Math.max(0, value)) : 0;
+
     const containerStyles = cn(
       "relative h-4 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800",
       className
@@ -68,13 +74,13 @@ const Progress = React.memo<ProgressProps>(
           <ProgressPrimitive.Root
             ref={ref}
             className={containerStyles}
-            value={value}
+            value={normalizedValue}
             {...props}
           >
             {animate ? (
               <motion.div
                 initial={{ x: "-100%" }}
-                animate={{ x: `${value - 100}%` }}
+                animate={{ x: `${normalizedValue - 100}%` }}
                 transition={{ 
                   type: "spring",
                   stiffness: 100,
@@ -86,7 +92,7 @@ const Progress = React.memo<ProgressProps>(
             ) : (
               <ProgressPrimitive.Indicator
                 className={indicatorStyles}
-                style={{ transform: `translateX(-${100 - value}%)` }}
+                style={{ transform: `translateX(-${100 - normalizedValue}%)` }}
               />
             )}
           </ProgressPrimitive.Root>

@@ -495,207 +495,6 @@ const Home: React.FC = () => {
     }
   }, [authState.session]);
 
-  // Memoize the handleSubmit function
-  const handleSubmit = useCallback(async () => {
-    if (!quizState.text.trim()) {
-      toast.error('Please enter some text to generate questions');
-      return;
-    }
-
-    if (!authState.user && !authState.session) {
-      toast.error('Your session has expired. Please log in again.');
-      router.push('/login');
-      return;
-    }
-
-    try {
-      setQuizState(prev => ({
-        ...prev,
-        isLoading: true,
-        error: null
-      }));
-      setDebugInfo(null);
-      
-      const numStatements = 5;
-      const authToken = authState.session?.$id;
-      
-      if (isDevelopment) {
-        console.log('Generating quiz with text length:', quizState.text.length);
-        setDebugInfo({
-          timestamp: new Date().toISOString(),
-          requestDetails: { 
-            textLength: quizState.text.length,
-            numStatements
-          }
-        });
-      }
-      
-      const responseData = await api.generateQuiz(quizState.text, numStatements, authToken);
-      
-      if (isDevelopment) {
-        setDebugInfo(prev => ({
-          ...prev || {},
-          parsedResponse: responseData,
-          responseTimestamp: new Date().toISOString()
-        }));
-      }
-      
-      const questionsArray = extractQuestionsArray(responseData, isDevelopment);
-      
-      if (isDevelopment) {
-        setDebugInfo(prev => ({
-          ...prev || {},
-          foundArrayType: questionsArray ? typeof questionsArray : 'null',
-          foundArrayLength: questionsArray?.length ?? 0
-        }));
-      }
-      
-      if (!questionsArray) {
-        throw new Error('Could not extract valid question data from response format');
-      }
-      
-      const processedData = processQuestionsData(questionsArray, isDevelopment);
-      
-      if (processedData.length === 0) {
-        throw new Error('No valid questions found in the response data');
-      }
-      
-      if (isDevelopment) {
-        console.log('Final processed questions:', processedData);
-        setDebugInfo(prev => ({
-          ...prev || {},
-          processedDataLength: processedData.length,
-          finalProcessedData: processedData
-        }));
-      }
-      
-      setQuizState(prev => ({
-        ...prev,
-        responseData: processedData,
-        activeSection: 'quiz',
-        isLoading: false
-      }));
-      
-      toast.success(`Generated ${processedData.length} questions successfully!`);
-      quizSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-      
-      if (processedData.length > 0 && authState.session?.$id && authState.user) {
-        try {
-          setQuizState(prev => ({ ...prev, isSaving: true, saveError: null }));
-          
-          const defaultTitle = quizState.text.trim().split(' ').slice(0, 5).join(' ') + '...';
-          const userId = (authState.user as Models.User<Models.Preferences>).$id;
-          
-          const quizData: SaveQuizRequest = {
-            title: quizState.quizTitle || defaultTitle,
-            text: quizState.text,
-            questions: processedData,
-            userId
-          };
-          
-          const result = await api.saveQuiz(quizData, authState.session.$id);
-          
-          if (result.success) {
-            toast.success('Quiz saved successfully!');
-            fetchUserStats();
-          }
-        } catch (error) {
-          console.error('Error saving quiz:', error);
-          const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-          setQuizState(prev => ({
-            ...prev,
-            saveError: errorMessage
-          }));
-          toast.error('Failed to save quiz: ' + errorMessage);
-        } finally {
-          setQuizState(prev => ({ ...prev, isSaving: false }));
-        }
-      }
-    } catch (error) {
-      console.error('Error processing text:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      
-      setQuizState(prev => ({
-        ...prev,
-        error: errorMessage,
-        isLoading: false
-      }));
-      
-      if (isDevelopment) {
-        setDebugInfo(prev => ({
-          ...prev || {},
-          error: errorMessage,
-          errorStack: error instanceof Error ? error.stack : 'No stack trace',
-          errorTime: new Date().toISOString()
-        }));
-      }
-      
-      toast.error('Failed to generate questions: ' + errorMessage);
-    }
-  }, [quizState.text, quizState.quizTitle, authState, isDevelopment, fetchUserStats, router]);
-
-  // Memoize the handleQuizSubmit function
-  const handleQuizSubmit = useCallback(async (answers: Record<number, string>) => {
-    try {
-      toast.loading('Submitting your answers...');
-      
-      if (!authState.session?.$id) {
-        toast.dismiss();
-        toast.error('Your session has expired. Please log in again.');
-        router.push('/login');
-        return;
-      }
-      
-      if (!quizState.responseData || !Array.isArray(quizState.responseData) || quizState.responseData.length === 0) {
-        toast.dismiss();
-        toast.error('Quiz data is invalid. Please try generating a new quiz.');
-        return;
-      }
-      
-      await api.submitQuiz(
-        quizState.text,
-        answers,
-        quizState.responseData,
-        authState.session?.$id
-      );
-      
-      toast.dismiss();
-      toast.success('Quiz submitted successfully!');
-      
-      setQuizState(prev => ({
-        ...prev,
-        text: '',
-        responseData: null,
-        activeSection: 'input'
-      }));
-      setDebugInfo(null);
-      
-      fetchUserStats();
-      inputSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-    } catch (error) {
-      toast.dismiss();
-      console.error('Error submitting quiz:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to submit quiz: ${errorMessage}`);
-    }
-  }, [quizState.text, quizState.responseData, authState, router, fetchUserStats]);
-
-  // Effect for authentication check
-  useEffect(() => {
-    if (!authState.isLoading && !authState.user) {
-      router.push("/login");
-    } else if (authState.user) {
-      fetchUserStats();
-    }
-  }, [authState, router, fetchUserStats]);
-
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      api.cancelAllRequests();
-    };
-  }, []);
-
   /**
    * Extracts questions from API response data in different formats
    */
@@ -837,6 +636,207 @@ const Home: React.FC = () => {
     
     console.log(`Successfully processed ${processedQuestions.length} valid questions from ${data.length} items`);
     return processedQuestions;
+  }, []);
+
+  // Memoize the handleSubmit function
+  const handleSubmit = useCallback(async () => {
+    if (!quizState.text.trim()) {
+      toast.error('Please enter some text to generate questions');
+      return;
+    }
+
+    if (!authState.user && !authState.session) {
+      toast.error('Your session has expired. Please log in again.');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      setQuizState(prev => ({
+        ...prev,
+        isLoading: true,
+        error: null
+      }));
+      setDebugInfo(null);
+      
+      const numStatements = 5;
+      const authToken = authState.session?.$id;
+      
+      if (isDevelopment) {
+        console.log('Generating quiz with text length:', quizState.text.length);
+        setDebugInfo({
+          timestamp: new Date().toISOString(),
+          requestDetails: { 
+            textLength: quizState.text.length,
+            numStatements
+          }
+        });
+      }
+      
+      const responseData = await api.generateQuiz(quizState.text, numStatements, authToken);
+      
+      if (isDevelopment) {
+        setDebugInfo(prev => ({
+          ...prev || {},
+          parsedResponse: responseData,
+          responseTimestamp: new Date().toISOString()
+        }));
+      }
+      
+      const questionsArray = extractQuestionsArray(responseData, isDevelopment);
+      
+      if (isDevelopment) {
+        setDebugInfo(prev => ({
+          ...prev || {},
+          foundArrayType: questionsArray ? typeof questionsArray : 'null',
+          foundArrayLength: questionsArray?.length ?? 0
+        }));
+      }
+      
+      if (!questionsArray) {
+        throw new Error('Could not extract valid question data from response format');
+      }
+      
+      const processedData = processQuestionsData(questionsArray, isDevelopment);
+      
+      if (processedData.length === 0) {
+        throw new Error('No valid questions found in the response data');
+      }
+      
+      if (isDevelopment) {
+        console.log('Final processed questions:', processedData);
+        setDebugInfo(prev => ({
+          ...prev || {},
+          processedDataLength: processedData.length,
+          finalProcessedData: processedData
+        }));
+      }
+      
+      setQuizState(prev => ({
+        ...prev,
+        responseData: processedData,
+        activeSection: 'quiz',
+        isLoading: false
+      }));
+      
+      toast.success(`Generated ${processedData.length} questions successfully!`);
+      quizSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+      
+      if (processedData.length > 0 && authState.session?.$id && authState.user) {
+        try {
+          setQuizState(prev => ({ ...prev, isSaving: true, saveError: null }));
+          
+          const defaultTitle = quizState.text.trim().split(' ').slice(0, 5).join(' ') + '...';
+          const userId = (authState.user as Models.User<Models.Preferences>).$id;
+          
+          const quizData: SaveQuizRequest = {
+            title: quizState.quizTitle || defaultTitle,
+            text: quizState.text,
+            questions: processedData,
+            userId
+          };
+          
+          const result = await api.saveQuiz(quizData, authState.session.$id);
+          
+          if (result.success) {
+            toast.success('Quiz saved successfully!');
+            fetchUserStats();
+          }
+        } catch (error) {
+          console.error('Error saving quiz:', error);
+          const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+          setQuizState(prev => ({
+            ...prev,
+            saveError: errorMessage
+          }));
+          toast.error('Failed to save quiz: ' + errorMessage);
+        } finally {
+          setQuizState(prev => ({ ...prev, isSaving: false }));
+        }
+      }
+    } catch (error) {
+      console.error('Error processing text:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      
+      setQuizState(prev => ({
+        ...prev,
+        error: errorMessage,
+        isLoading: false
+      }));
+      
+      if (isDevelopment) {
+        setDebugInfo(prev => ({
+          ...prev || {},
+          error: errorMessage,
+          errorStack: error instanceof Error ? error.stack : 'No stack trace',
+          errorTime: new Date().toISOString()
+        }));
+      }
+      
+      toast.error('Failed to generate questions: ' + errorMessage);
+    }
+  }, [quizState.text, quizState.quizTitle, authState, isDevelopment, fetchUserStats, router, extractQuestionsArray, processQuestionsData]);
+
+  // Memoize the handleQuizSubmit function
+  const handleQuizSubmit = useCallback(async (answers: Record<number, string>) => {
+    try {
+      toast.loading('Submitting your answers...');
+      
+      if (!authState.session?.$id) {
+        toast.dismiss();
+        toast.error('Your session has expired. Please log in again.');
+        router.push('/login');
+        return;
+      }
+      
+      if (!quizState.responseData || !Array.isArray(quizState.responseData) || quizState.responseData.length === 0) {
+        toast.dismiss();
+        toast.error('Quiz data is invalid. Please try generating a new quiz.');
+        return;
+      }
+      
+      await api.submitQuiz(
+        quizState.text,
+        answers,
+        quizState.responseData,
+        authState.session?.$id
+      );
+      
+      toast.dismiss();
+      toast.success('Quiz submitted successfully!');
+      
+      setQuizState(prev => ({
+        ...prev,
+        text: '',
+        responseData: null,
+        activeSection: 'input'
+      }));
+      setDebugInfo(null);
+      
+      fetchUserStats();
+      inputSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      toast.dismiss();
+      console.error('Error submitting quiz:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to submit quiz: ${errorMessage}`);
+    }
+  }, [quizState.text, quizState.responseData, authState, router, fetchUserStats]);
+
+  // Effect for authentication check
+  useEffect(() => {
+    if (!authState.isLoading && !authState.user) {
+      router.push("/login");
+    } else if (authState.user) {
+      fetchUserStats();
+    }
+  }, [authState, router, fetchUserStats]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      api.cancelAllRequests();
+    };
   }, []);
 
   // UI Components

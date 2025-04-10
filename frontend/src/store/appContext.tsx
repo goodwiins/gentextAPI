@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext } from "react";
-import { getState } from "./flux";
+import getState from "./flux";
 
 interface Store {
     message: string | null;
@@ -21,35 +21,41 @@ export const Context = createContext<State | null>(null);
 
 const injectContext = (PassedComponent: React.FC) => {
     const StoreWrapper: React.FC = (props) => {
-        const [state, setState] = useState<State | null>(null);
+        const [state, setState] = useState<State>({
+            store: {
+                message: null,
+                demo: []
+            },
+            actions: {
+                exampleFunction: () => {},
+                getMessage: async () => {},
+                changeColor: () => {}
+            }
+        });
 
         useEffect(() => {
-            if (!state) {
-                setState(
-                    getState({
-                        getStore: () => state?.store,
-                        getActions: () => state?.actions,
-                        setStore: (updatedStore) =>
-                            setState({
-                                store: Object.assign(state.store, updatedStore),
-                                actions: { ...state.actions }
-                            })
-                    })
-                );
-            }
-        }, [state]);
+            setState(
+                getState({
+                    getStore: () => state.store,
+                    getActions: () => state.actions,
+                    setStore: (updatedStore) => setState(prevState => ({
+                        store: { ...prevState.store, ...updatedStore },
+                        actions: { ...prevState.actions }
+                    }))
+                })
+            );
+        }, [state.store, state.actions]);
 
         useEffect(() => {
-            if (state) {
-                state.actions.getMessage();
-            }
-        }, [state]);
+            state.actions.getMessage();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, []);
 
-        return state ? (
+        return (
             <Context.Provider value={state}>
                 <PassedComponent {...props} />
             </Context.Provider>
-        ) : null;
+        );
     };
 
     return StoreWrapper;

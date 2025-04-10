@@ -149,11 +149,6 @@ export const QuizDisplay: React.FC<QuizDisplayProps> = ({
     }
   }, [currentQuestionIndex]);
 
-  // If no valid questions, show error
-  if (!validQuestions.length) {
-    return <ErrorDisplay />;
-  }
-
   // Memoize navigation buttons
   const navigationButtons = useMemo(() => (
     <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -163,31 +158,25 @@ export const QuizDisplay: React.FC<QuizDisplayProps> = ({
         variant="outline"
         className="flex items-center space-x-2 h-12 px-6"
       >
-        <ChevronLeft className="w-5 h-5" />
+        <ChevronLeft className="h-5 w-5" />
         <span>Previous</span>
       </Button>
-
-      {currentQuestionIndex === validQuestions.length - 1 ? (
-        <Button
-          onClick={handleQuizSubmit}
-          disabled={!canSubmit}
-          className="w-full sm:w-auto flex items-center justify-center space-x-2 h-12 px-6 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50"
-        >
-          <CheckCircle className="w-5 h-5" />
-          <span>Submit Quiz</span>
-        </Button>
-      ) : (
-        <Button
-          onClick={handleNext}
-          disabled={!selectedAnswers[currentQuestionIndex]}
-          className="w-full sm:w-auto flex items-center justify-center space-x-2 h-12 px-6 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50"
-        >
-          <span>Next</span>
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-      )}
+      <Button
+        onClick={handleNext}
+        disabled={currentQuestionIndex === validQuestions.length - 1}
+        variant="outline"
+        className="flex items-center space-x-2 h-12 px-6"
+      >
+        <span>Next</span>
+        <ChevronRight className="h-5 w-5" />
+      </Button>
     </div>
-  ), [currentQuestionIndex, validQuestions.length, canSubmit, selectedAnswers, handlePrevious, handleNext, handleQuizSubmit]);
+  ), [currentQuestionIndex, validQuestions.length, handlePrevious, handleNext]);
+
+  // If no valid questions, show error
+  if (!validQuestions.length) {
+    return <ErrorDisplay />;
+  }
 
   // Check if we have false sentences to display
   const hasFalseSentences = currentQuestion.false_sentences && 

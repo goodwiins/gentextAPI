@@ -15,6 +15,9 @@ import { useRouter } from "next/router"
 import React, { useEffect, useState } from 'react';
 import { useAuthContext } from "@/context/auth-context";
 import { motion } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User, Settings, History, Home } from "lucide-react";
+import Image from "next/image";
 
 // Add a constant for the default avatar
 const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0xMiAwYzYuNjI3IDAgMTIgNS4zNzMgMTIgMTJzLTUuMzczIDEyLTEyIDEyUzAgMTguNjI3IDAgMTIgNS4zNzMgMCAxMiAwek0wIDEyYzAgNi42MjcgNS4zNzMgMTIgMTIgMTJzMTItNS4zNzMgMTItMTItNS4zNzMtMTItMTItMTJTMCA1LjM3MyAwIDEyem0xMi0xLjVjMS4zOCAwIDIuNSAxLjEyIDIuNSAyLjVzLTEuMTIgMi41LTIuNSAyLjUtMi41LTEuMTItMi41LTIuNSAxLjEyLTIuNSAyLjUtMi41eiIvPjwvc3ZnPg==';
@@ -151,10 +154,12 @@ export default function Navbar() {
                     size="icon"
                     className="h-10 w-10 rounded-full overflow-hidden ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950 ring-gray-200 dark:ring-gray-800 transition-all duration-200 hover:ring-blue-500 dark:hover:ring-blue-400"
                   >
-                    <img
+                    <Image
                       alt="User Avatar"
                       className="h-full w-full object-cover"
                       src={authState.user?.prefs?.avatar || DEFAULT_AVATAR}
+                      width={40}
+                      height={40}
                     />
                   </Button>
                 </motion.div>
@@ -162,10 +167,12 @@ export default function Navbar() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="flex items-center space-x-2">
                   <div className="h-8 w-8 rounded-full overflow-hidden">
-                    <img
+                    <Image
                       alt="User Avatar"
                       className="h-full w-full object-cover"
                       src={authState.user?.prefs?.avatar || DEFAULT_AVATAR}
+                      width={32}
+                      height={32}
                     />
                   </div>
                   <div className="flex flex-col">
