@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Environment variables for configuration
 HOST = os.getenv("API_HOST", "0.0.0.0")  # Default to all interfaces for production
 PORT = int(os.getenv("API_PORT", "8000"))
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://167.71.90.100:3000,http://167.71.90.100,http://localhost").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://167.71.90.100:3000,http://167.71.90.100,http://localhost,https://gentext-api.vercel.app").split(",")
 WORKERS = int(os.getenv("API_WORKERS", "1"))
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 MAX_WORKERS = int(os.getenv("MAX_THREAD_WORKERS", os.cpu_count() or 4))
