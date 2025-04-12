@@ -71,3 +71,4 @@ node_modules/
 
 # OS files
 Thumbs.db
+server/src/scripts/set_env.sh

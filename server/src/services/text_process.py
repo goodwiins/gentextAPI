@@ -7,7 +7,7 @@ import logging
 from summa.summarizer import summarize
 from string import punctuation
 from nltk.tokenize import sent_tokenize
-from generator_factory import StatementGeneratorFactory
+from src.generators.generator_factory import StatementGeneratorFactory
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

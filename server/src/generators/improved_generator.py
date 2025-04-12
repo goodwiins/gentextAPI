@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 import re
 from nltk.tokenize import sent_tokenize, word_tokenize
 import spacy
-from qa_formatter import QAFormatter
+from src.services.qa_formatter import QAFormatter
 import os
 import time
 import logging

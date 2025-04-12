@@ -1,6 +1,92 @@
-# genTextAPI
+# GenTextAPI Server
 
-An AI-powered API for generating quizzes, false statements, and Q&A from text content.
+## Project Structure
+
+```
+server/
+├── src/
+│   ├── api/                 # API routes and FastAPI application
+│   │   └── fastapi_app.py   # Main FastAPI application
+│   ├── generators/          # Text generation components
+│   │   ├── claude_generator.py
+│   │   ├── generator_factory.py
+│   │   └── improved_generator.py
+│   ├── services/            # Business logic services
+│   │   ├── paraphraser.py
+│   │   ├── qa_formatter.py
+│   │   └── text_process.py
+│   ├── config/             # Configuration and models
+│   │   ├── config.py
+│   │   ├── db.py
+│   │   └── model.py
+│   ├── utils/              # Utility functions
+│   ├── tests/              # Test files
+│   │   ├── test_api_client.py
+│   │   ├── test_claude.py
+│   │   ├── test_fastapi.py
+│   │   ├── test_models.py
+│   │   └── test_qa.py
+│   ├── scripts/            # Shell scripts
+│   │   ├── check_dependencies.sh
+│   │   ├── create_nginx_config.sh
+│   │   ├── deploy.sh
+│   │   ├── deploy_do.sh
+│   │   ├── install_dependencies.sh
+│   │   ├── manage.sh
+│   │   ├── set_env.sh
+│   │   ├── setup_fastapi_nginx.sh
+│   │   ├── setup_nginx.sh
+│   │   └── start_fastapi.sh
+│   └── deployment/         # Deployment configurations
+│       ├── Dockerfile
+│       ├── docker-compose.yml
+│       ├── fastapi.service
+│       ├── gentext-api.service
+│       └── nginx.conf
+├── main.py                # Application entry point
+├── requirements.txt       # Python dependencies
+└── README.md             # Project documentation
+```
+
+## Setup Instructions
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   cd server
+   pip install -r requirements.txt
+   ```
+3. Set up environment variables:
+   ```bash
+   cp src/scripts/set_env.sh.example src/scripts/set_env.sh
+   # Edit set_env.sh with your configuration
+   ```
+4. Start the server:
+   ```bash
+   python main.py
+   ```
+
+## Development
+
+- Add new API endpoints in `src/api/fastapi_app.py`
+- Add new generators in `src/generators/`
+- Add new services in `src/services/`
+- Add new tests in `src/tests/`
+
+## Deployment
+
+Use the scripts in `src/scripts/` for deployment:
+- `deploy.sh` - General deployment
+- `deploy_do.sh` - DigitalOcean deployment
+- `setup_nginx.sh` - NGINX setup
+- `manage.sh` - Service management
+
+## Testing
+
+Run tests using:
+```bash
+python -m pytest src/tests/
+```
 
 ## Server Setup
 

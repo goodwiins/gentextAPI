@@ -5,8 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Union, Any
 from functools import lru_cache
 import os
-from improved_generator import ImprovedFalseStatementGenerator
-from claude_generator import ClaudeFalseStatementGenerator
+from src.generators.improved_generator import ImprovedFalseStatementGenerator
+from src.generators.claude_generator import ClaudeFalseStatementGenerator
 
 logger = logging.getLogger(__name__)
 

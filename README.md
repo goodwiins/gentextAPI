@@ -21,11 +21,12 @@ The application consists of two main components:
 ### Technology Stack
 
 - **Backend**:
-  - Python Flask
+  - Python FastAPI
   - SQLAlchemy ORM
   - JWT Authentication
   - Hugging Face Transformers
   - GPT-2 Medium model for text generation
+  - Claude API integration
 
 - **Frontend**:
   - Next.js with TypeScript
@@ -54,7 +55,7 @@ The application consists of two main components:
    ```
 5. Start the server:
    ```bash
-   python app.py
+   python fastapi_app.py
    ```
 
 ### Frontend Setup
@@ -121,7 +122,7 @@ If you encounter field name errors in your Appwrite database, make sure the fiel
 
 ### Backend Components
 
-- **app.py**: Main application file with routes and server configuration
+- **fastapi_app.py**: Main application file with FastAPI routes and server configuration
 - **improved_generator.py**: Core logic for generating false statements
 - **model.py**: Database models for users and interactions
 - **text_process.py**: Text processing utilities for candidate sentence extraction
@@ -198,7 +199,7 @@ If you encounter field name errors in your Appwrite database, make sure the fiel
 ### Adding New Features
 
 1. Backend changes:
-   - Add new endpoints in `app.py`
+   - Add new endpoints in `fastapi_app.py`
    - Update database models in `model.py` if needed
    - Run tests to ensure existing functionality is not affected
 

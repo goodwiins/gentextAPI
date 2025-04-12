@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import uvicorn
-from generator_factory import StatementGeneratorFactory
+from src.generators.generator_factory import StatementGeneratorFactory
 import nltk
 from nltk.tokenize import word_tokenize
 from fastapi.middleware.cors import CORSMiddleware
