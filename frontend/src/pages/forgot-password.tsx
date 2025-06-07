@@ -83,7 +83,7 @@ export default function ForgotPassword() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Reset Password</CardTitle>
           <CardDescription className="text-center">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we&apos;ll send you a link to reset your password
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -92,7 +92,7 @@ export default function ForgotPassword() {
               <Alert className="bg-green-50 border-green-200">
                 <AlertTitle className="text-green-800">Check your email</AlertTitle>
                 <AlertDescription className="text-green-700">
-                  We've sent a password reset link to {email}. Please check your inbox and follow the instructions.
+                  We&apos;ve sent a password reset link to {email}. Please check your inbox and follow the instructions.
                 </AlertDescription>
               </Alert>
               <Button 
