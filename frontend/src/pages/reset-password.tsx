@@ -74,7 +74,7 @@ export default function ResetPassword() {
     
     try {
       // Complete the password recovery process
-      await account.updateRecovery(userId, secret, password, password);
+      await account.updateRecovery(userId, secret, password);
       
       // Show success message
       setIsSuccess(true);
