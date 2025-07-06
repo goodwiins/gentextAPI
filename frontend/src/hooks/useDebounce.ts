@@ -26,13 +26,11 @@ export const useDebounce = <T>(value: T, delay: number): T => {
  * Custom hook for debounced callbacks
  * @param callback - The callback function to debounce
  * @param delay - The delay in milliseconds
- * @param deps - Dependency array for the callback
  * @returns The debounced callback function
  */
 export const useDebouncedCallback = <T extends (...args: any[]) => any>(
   callback: T,
-  delay: number,
-  deps: React.DependencyList = []
+  delay: number
 ): T => {
   const [debouncedCallback, setDebouncedCallback] = useState<T | null>(null);
 
@@ -44,7 +42,7 @@ export const useDebouncedCallback = <T extends (...args: any[]) => any>(
     return () => {
       clearTimeout(handler);
     };
-  }, [callback, delay, ...deps]);
+  }, [callback, delay]);
 
   return (debouncedCallback || callback) as T;
 };

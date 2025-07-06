@@ -58,8 +58,7 @@ export const UserStatsCard: React.FC<UserStatsCardProps> = ({ stats, isLoading =
     >
       <Card className="p-6 backdrop-blur-sm bg-gradient-to-br from-white/80 to-blue-50/50 border-blue-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
         <motion.div variants={itemVariants} className="text-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2">
-            <Icons.BarChart className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900 text-center">
             Your Progress
           </h3>
         </motion.div>
