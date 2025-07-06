@@ -38,6 +38,10 @@ export const useNotifications = () => {
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  const removeNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const id = Date.now().toString() + Math.random().toString(36);
     const newNotification: Notification = {
@@ -67,11 +71,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       icon: emoji,
       duration: 3000,
     });
-  }, []);
-
-  const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+  }, [removeNotification]);
 
   const clearAll = useCallback(() => {
     setNotifications([]);
@@ -207,108 +207,103 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onRem
   );
 };
 
-// Enhanced toast helpers with better UX
-export const enhancedToast = {
-  success: (title: string, message?: string, action?: { label: string; onClick: () => void }) => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'success',
-      title,
-      message: message || '',
-      action,
-    });
-  },
+// Enhanced toast helper hook for better UX
+export const useEnhancedToast = () => {
+  const { addNotification } = useNotifications();
 
-  error: (title: string, message?: string, action?: { label: string; onClick: () => void }) => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'error',
-      title,
-      message: message || '',
-      action,
-      persistent: true, // Errors should be persistent
-    });
-  },
+  return {
+    success: (title: string, message?: string, action?: { label: string; onClick: () => void }) => {
+      addNotification({
+        type: 'success',
+        title,
+        message: message || '',
+        action,
+      });
+    },
 
-  warning: (title: string, message?: string) => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'warning',
-      title,
-      message: message || '',
-      duration: 7000, // Warnings stay longer
-    });
-  },
+    error: (title: string, message?: string, action?: { label: string; onClick: () => void }) => {
+      addNotification({
+        type: 'error',
+        title,
+        message: message || '',
+        action,
+        persistent: true, // Errors should be persistent
+      });
+    },
 
-  info: (title: string, message?: string) => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'info',
-      title,
-      message: message || '',
-    });
-  },
+    warning: (title: string, message?: string) => {
+      addNotification({
+        type: 'warning',
+        title,
+        message: message || '',
+        duration: 7000, // Warnings stay longer
+      });
+    },
 
-  // Contextual notifications for auth
-  authSuccess: (action: 'login' | 'logout' | 'signup') => {
-    const { addNotification } = useNotifications();
-    const messages = {
-      login: { title: 'Welcome back!', message: 'You\'ve been successfully signed in.' },
-      logout: { title: 'See you later!', message: 'You\'ve been successfully signed out.' },
-      signup: { title: 'Welcome aboard!', message: 'Your account has been created successfully.' },
-    };
-    
-    addNotification({
-      type: 'success',
-      ...messages[action],
-    });
-  },
+    info: (title: string, message?: string) => {
+      addNotification({
+        type: 'info',
+        title,
+        message: message || '',
+      });
+    },
 
-  authError: (error: string, action?: { label: string; onClick: () => void }) => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'error',
-      title: 'Authentication Error',
-      message: error,
-      action,
-      persistent: true,
-    });
-  },
+    // Contextual notifications for auth
+    authSuccess: (action: 'login' | 'logout' | 'signup') => {
+      const messages = {
+        login: { title: 'Welcome back!', message: 'You\'ve been successfully signed in.' },
+        logout: { title: 'See you later!', message: 'You\'ve been successfully signed out.' },
+        signup: { title: 'Welcome aboard!', message: 'Your account has been created successfully.' },
+      };
+      
+      addNotification({
+        type: 'success',
+        ...messages[action],
+      });
+    },
 
-  // Quiz-specific notifications
-  quizGenerated: (questionCount: number) => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'success',
-      title: 'Quiz Generated!',
-      message: `Successfully created ${questionCount} questions from your text.`,
-    });
-  },
+    authError: (error: string, action?: { label: string; onClick: () => void }) => {
+      addNotification({
+        type: 'error',
+        title: 'Authentication Error',
+        message: error,
+        action,
+        persistent: true,
+      });
+    },
 
-  quizSaved: (title: string) => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'success',
-      title: 'Quiz Saved!',
-      message: `"${title}" has been saved to your history.`,
-      action: {
-        label: 'View History',
-        onClick: () => window.location.href = '/history'
-      }
-    });
-  },
+    // Quiz-specific notifications
+    quizGenerated: (questionCount: number) => {
+      addNotification({
+        type: 'success',
+        title: 'Quiz Generated!',
+        message: `Successfully created ${questionCount} questions from your text.`,
+      });
+    },
 
-  networkError: () => {
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: 'error',
-      title: 'Connection Error',
-      message: 'Please check your internet connection and try again.',
-      action: {
-        label: 'Retry',
-        onClick: () => window.location.reload()
-      },
-      persistent: true,
-    });
-  }
+    quizSaved: (title: string) => {
+      addNotification({
+        type: 'success',
+        title: 'Quiz Saved!',
+        message: `"${title}" has been saved to your history.`,
+        action: {
+          label: 'View History',
+          onClick: () => window.location.href = '/history'
+        }
+      });
+    },
+
+    networkError: () => {
+      addNotification({
+        type: 'error',
+        title: 'Connection Error',
+        message: 'Please check your internet connection and try again.',
+        action: {
+          label: 'Retry',
+          onClick: () => window.location.reload()
+        },
+        persistent: true,
+      });
+    }
+  };
 };
