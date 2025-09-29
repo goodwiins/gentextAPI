@@ -91,6 +91,41 @@ export enum SectionName {
   FOOTER = 'footer'
 }
 
+export type ConversionAction = ConversionType;
+
+// Component props types for homepage components
+export interface CtaSectionProps {
+  variant: 'primary' | 'secondary' | 'minimal';
+  user: any; // AuthUser | null
+  onCtaClick: (action: ConversionAction) => void;
+  showSocialProof?: boolean;
+  backgroundColor?: 'default' | 'gradient' | 'solid';
+}
+
+export interface FeatureCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  animationDelay?: number;
+  onView: (featureId: string) => void;
+  onInteraction: (featureId: string, interactionType: string) => void;
+}
+
+export interface HomepageHeroProps {
+  user: any; // AuthUser | null
+  onCtaClick: (action: ConversionAction) => void;
+  performanceMode?: 'high' | 'standard' | 'minimal';
+}
+
+export interface ProcessStepProps {
+  stepNumber: number;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isLast?: boolean;
+  animationDirection?: 'left' | 'right' | 'up' | 'down';
+}
+
 // ================================
 // API REQUEST/RESPONSE TYPES
 // ================================

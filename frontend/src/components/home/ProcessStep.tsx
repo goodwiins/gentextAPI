@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
-import type { ProcessStepProps } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { ProcessStepProps } from '@/types/analytics';
 
 export function ProcessStep({ 
   stepNumber, 

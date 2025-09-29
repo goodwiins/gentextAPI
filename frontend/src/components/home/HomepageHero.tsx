@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useHomepageAnalytics } from '@/hooks/useHomepageAnalytics';
 import { Button } from '@/components/ui/button';
-import type { HomepageHeroProps, ConversionAction } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { HomepageHeroProps, ConversionAction } from '@/types/analytics';
 import { ArrowRight, BookOpen, Sparkles } from 'lucide-react';
 
 export function HomepageHero({ 

@@ -4,7 +4,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useHomepageAnalytics } from '@/hooks/useHomepageAnalytics';
-import type { CtaSectionProps, ConversionAction } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { CtaSectionProps, ConversionAction } from '@/types/analytics';
+import { SectionName } from '@/types/analytics';
 import { ArrowRight, Users, Star, Zap, CheckCircle } from 'lucide-react';
 
 export function CtaSection({ 
@@ -25,7 +26,7 @@ export function CtaSection({
       eventType: action,
       eventData: {
         ctaText: user ? 'Generate Quiz' : 'Get Started',
-        ctaPosition: 'cta',
+        ctaPosition: SectionName.CTA,
         scrollDepth: 0,
         timeOnPage: 0
       },

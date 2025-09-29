@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
-import type { FeatureCardProps } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { FeatureCardProps } from '@/types/analytics';
 import { ArrowRight } from 'lucide-react';
 
 export function FeatureCard({ 
