@@ -5,6 +5,7 @@
 
 import { analyticsService } from './analytics-service';
 import type { PageViewMetrics, WebVitalsMetrics } from '@/types/analytics';
+import { SectionName, EngagementType } from '@/types/analytics';
 
 export interface PerformanceMetrics {
   frameRate: number;
@@ -406,8 +407,8 @@ export class PerformanceManager {
     
     // Track session duration as engagement
     analyticsService.trackEngagement(
-      'session',
-      'duration',
+      SectionName.HERO,
+      EngagementType.VIEW,
       Math.round(duration),
       0,
       0

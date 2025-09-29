@@ -28,10 +28,12 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 }));
 
 // Mock PerformanceObserver for performance tests
-global.PerformanceObserver = vi.fn().mockImplementation(() => ({
+const mockPerformanceObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   disconnect: vi.fn(),
 }));
+(mockPerformanceObserver as any).supportedEntryTypes = ['paint', 'layout-shift', 'first-input', 'largest-contentful-paint'];
+global.PerformanceObserver = mockPerformanceObserver as any;
 
 // Mock requestAnimationFrame for animation performance tests
 global.requestAnimationFrame = vi.fn().mockImplementation((cb) => setTimeout(cb, 16));

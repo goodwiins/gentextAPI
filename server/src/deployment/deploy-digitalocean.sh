@@ -74,7 +74,7 @@ echo "🌐 Configuring Nginx..."
 sudo tee /etc/nginx/sites-available/gentext-api << EOF
 server {
     listen 80;
-    server_name yourdomain.com www.yourdomain.com;
+    server_name 45.55.174.40 yourdomain.com www.yourdomain.com;
 
     # Rate limiting
     limit_req_zone \$binary_remote_addr zone=api:10m rate=10r/s;
@@ -163,7 +163,7 @@ sudo chmod +x /usr/local/bin/gentext-monitor
 (crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/gentext-monitor") | crontab -
 
 echo "✅ Deployment complete!"
-echo "🌐 Your API should be available at: http://yourdomain.com"
-echo "📊 API docs available at: http://yourdomain.com/docs"
+echo "🌐 Your API should be available at: http://45.55.174.40"
+echo "📊 API docs available at: http://45.55.174.40/docs"
 echo "🔍 Check logs with: docker-compose -f src/deployment/docker-compose.production.yml logs -f"
 echo "🔄 Restart service with: docker-compose -f src/deployment/docker-compose.production.yml restart"

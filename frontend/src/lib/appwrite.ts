@@ -1,4 +1,4 @@
-import { Client, Account, ID, Models } from 'appwrite';
+import { Client, Account, ID, Models, Databases } from 'appwrite';
 
 // Extract environment variables with debugging
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
@@ -14,6 +14,7 @@ const client = new Client()
     .setProject(APPWRITE_PROJECT_ID);
 
 export const account = new Account(client);
+export const databases = new Databases(client);
 
 // Helper function to handle rate limits
 const handleRateLimit = async (error: any, retryCount = 0): Promise<any> => {

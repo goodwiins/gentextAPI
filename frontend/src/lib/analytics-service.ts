@@ -264,7 +264,7 @@ class AnalyticsService {
     return {
       enabled: this.isEnabled,
       sessionId: this.sessionId,
-      userId: this.userId || undefined,
+      userId: this.userId,
       queueSize: this.queue.length
     };
   }

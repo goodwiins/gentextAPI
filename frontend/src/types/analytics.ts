@@ -26,6 +26,11 @@ export interface PageViewMetrics {
   cls: number;         // Cumulative Layout Shift
   fid: number;         // First Input Delay
   ttfb?: number;       // Time to First Byte
+  bundleSize?: number; // Bundle size in bytes
+  memoryUsage?: number; // Memory usage in MB
+  frameRate?: number;  // Average frame rate
+  domContentLoaded?: number; // DOM content loaded time
+  viewport?: ViewportData; // Viewport information
 }
 
 export interface ViewportData {
@@ -141,6 +146,7 @@ export interface HomepageLayoutProps {
   user: any; // AuthUser | null
   performanceMode?: 'high' | 'standard' | 'minimal';
   analyticsEnabled?: boolean;
+  onCtaClick?: (action: ConversionAction) => void;
 }
 
 export interface AuthUser {
@@ -347,10 +353,10 @@ export interface ErrorBoundaryInfo {
 // ================================
 
 export interface MockAnalyticsService {
-  trackPageView: jest.MockedFunction<(metrics: PageViewMetrics) => Promise<void>>;
-  trackConversion: jest.MockedFunction<(event: any) => Promise<void>>;
-  trackEngagement: jest.MockedFunction<(engagement: any) => Promise<void>>;
-  flush: jest.MockedFunction<() => Promise<void>>;
+  trackPageView: (metrics: PageViewMetrics) => Promise<void>;
+  trackConversion: (event: any) => Promise<void>;
+  trackEngagement: (engagement: any) => Promise<void>;
+  flush: () => Promise<void>;
   reset: () => void;
 }
 

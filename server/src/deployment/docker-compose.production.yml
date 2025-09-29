@@ -11,7 +11,7 @@ services:
     environment:
       - API_HOST=0.0.0.0
       - API_PORT=8000
-      - CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+      - CORS_ORIGINS=https://45.55.174.40,http://45.55.174.40,https://goodwiinz.com,https://www.goodwiinz.com
       - DEBUG=False
       - MAX_THREAD_WORKERS=4
       - OPENROUTE_API_KEY=${OPENROUTE_API_KEY}

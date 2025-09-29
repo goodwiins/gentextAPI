@@ -9,7 +9,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://167.71.90.100:8000/:path*', // Proxy to Backend using server IP
+        destination: 'http://45.55.174.40:8000/:path*', // Proxy to DigitalOcean Backend
       },
     ];
   },
