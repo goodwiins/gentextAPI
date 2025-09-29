@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   api:
     build: 
-      context: .
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: src/deployment/Dockerfile
     container_name: gentext-api
     ports:
       - "8000:8000"
@@ -14,6 +12,7 @@ services:
       - CORS_ORIGINS=*  # Allow all origins in development, restrict in production
       - DEBUG=False
       - MAX_THREAD_WORKERS=4
+      - OPENROUTE_API_KEY=${OPENROUTE_API_KEY}  # xAI Grok API key via OpenRoute
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

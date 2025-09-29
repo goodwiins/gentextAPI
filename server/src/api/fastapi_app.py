@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import uvicorn
 from src.generators.generator_factory import StatementGeneratorFactory
+from src.api.analytics import router as analytics_router
 import nltk
 from nltk.tokenize import word_tokenize
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,6 +53,55 @@ app.add_middleware(
     max_age=86400,  # 24 hours cache for preflight requests
 )
 
+# Analytics middleware for request tracking
+@app.middleware("http")
+async def analytics_middleware(request: Request, call_next):
+    """Middleware to track API requests and performance metrics"""
+    start_time = time.time()
+    
+    # Generate unique request ID
+    request_id = str(uuid.uuid4())
+    
+    # Add request ID to request state for access in endpoints
+    request.state.request_id = request_id
+    
+    # Log request details
+    logger.info(f"Request {request_id}: {request.method} {request.url.path}")
+    
+    try:
+        # Process the request
+        response = await call_next(request)
+        
+        # Calculate processing time
+        process_time = time.time() - start_time
+        
+        # Add analytics headers
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Process-Time"] = f"{process_time:.4f}"
+        
+        # Log successful request
+        logger.info(
+            f"Request {request_id} completed: {response.status_code} in {process_time:.4f}s"
+        )
+        
+        # Track slow requests (> 1 second)
+        if process_time > 1.0:
+            logger.warning(f"Slow request detected: {request_id} took {process_time:.4f}s")
+        
+        return response
+        
+    except Exception as e:
+        # Calculate processing time even for failed requests
+        process_time = time.time() - start_time
+        
+        # Log failed request
+        logger.error(
+            f"Request {request_id} failed after {process_time:.4f}s: {str(e)}"
+        )
+        
+        # Re-raise the exception
+        raise
+
 class TextRequest(BaseModel):
     text: str
     num_statements: Optional[int] = Field(3, ge=1, le=10, description="Number of statements to generate (1-10)")
@@ -92,6 +142,9 @@ class QuizSubmission(BaseModel):
 
 # Initialize the generator factory with configurable thread pool
 generator_factory = StatementGeneratorFactory(max_workers=MAX_WORKERS)
+
+# Include analytics router
+app.include_router(analytics_router)
 
 # Example requests for documentation
 example_generate_request = {

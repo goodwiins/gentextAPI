@@ -23,6 +23,12 @@ class BaseConfig:
     GPT2_TOP_K = 50
     GPT2_TOP_P = 0.95
 
+    # xAI Grok configurations
+    GROK_MODEL_NAME = "x-ai/grok-4-fast:free"
+    GROK_MAX_TOKENS = 1024
+    GROK_TEMPERATURE = 0.9
+    GROK_TOP_P = 0.95
+
     # Rate limiter configuration
     RATELIMIT_STORAGE_URL = "memory://"  # Default to memory storage
 

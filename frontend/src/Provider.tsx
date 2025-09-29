@@ -1,6 +1,7 @@
 "use client";
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from '@/components/theme-provider';
 import React, { ReactNode, useState } from "react";
 
 interface Props {
@@ -12,7 +13,14 @@ function Provider({ children }: Props) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>{children}</SessionProvider>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <SessionProvider>{children}</SessionProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

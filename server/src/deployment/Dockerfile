@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y \
 # Copy only requirements.txt first
 COPY requirements.txt ./
 
+# Install critical missing dependencies first
+RUN pip install --no-cache-dir backoff>=2.2.1
+
 # Install dependencies with proper versioning to avoid conflicts
 RUN pip install --no-cache-dir -v huggingface-hub==0.11.1
 RUN pip install --no-cache-dir -v transformers==4.25.1
@@ -55,7 +58,7 @@ COPY . .
 EXPOSE 8000
 
 # Start with a shell script to handle signals properly
-RUN echo '#!/bin/bash\nset -e\nuvicorn fastapi_app:app --host 0.0.0.0 --port 8000 --log-level info "$@"' > /app/start.sh && \
+RUN echo '#!/bin/bash\nset -e\ncd /app\nexport PYTHONPATH=/app:$PYTHONPATH\nuvicorn src.api.fastapi_app:app --host 0.0.0.0 --port 8000 --log-level info "$@"' > /app/start.sh && \
     chmod +x /app/start.sh
 
 # Run the startup script

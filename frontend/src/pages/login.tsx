@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +18,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { appwriteAuth } from "@/lib/appwrite";
 import { useAuthContext } from "@/context/auth-context";
+import { BackgroundBeams } from "@/components/ui/background-beams";
+import { Meteors } from "@/components/ui/meteors";
+import { Sparkles } from "@/components/ui/sparkles-text";
+import { EnhancedAuthWrapper } from "@/components/aceternity";
 
 export default function Login() {
   const router = useRouter();
@@ -102,22 +107,24 @@ export default function Login() {
     } catch (error: any) {
       console.error("Error during login:", error);
       
-      if (error.message?.includes('Please complete your profile')) {
+      // Handle profile incomplete error
+      if (error.message === 'PROFILE_INCOMPLETE' || error.message?.includes('Please complete your profile')) {
         toast.success('Logged in successfully!');
         router.push('/complete-profile');
         return;
       }
       
+      // Handle session conflicts
       if (error.message?.includes('Creation of a session is prohibited when a session is active')) {
         setLocalError('You already have an active session. Please use the "Fix Session Issues" button below.');
-      } else {
-        // Use error from auth state or fallback to local error
-        setLocalError(authState.error || error.message || 'Failed to login');
+        toast.error('Session conflict detected. Please fix session issues.');
+        return;
       }
       
-      if (localError) {
-        toast.error(localError);
-      }
+      // Handle other errors
+      const errorMessage = authState.error || error.message || 'Failed to login';
+      setLocalError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -148,26 +155,54 @@ export default function Login() {
   const isLoading = authState.isLoading;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
-          <CardDescription className="text-center">
-            Enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 px-4 py-8 relative overflow-hidden">
+      <BackgroundBeams />
+      
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="relative z-10 w-full max-w-md"
+      >
+        <Card className="w-full max-w-md backdrop-blur-xl bg-white/10 dark:bg-black/20 border-white/20 dark:border-gray-700/50 shadow-2xl">
+          <Meteors number={20} />
+          <CardHeader className="space-y-1 text-white">
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            >
+              <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Welcome back
+              </CardTitle>
+              <CardDescription className="text-gray-300 text-center">
+                Enter your credentials to access your account
+              </CardDescription>
+            </motion.div>
+          </CardHeader>
+        <CardContent className="space-y-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {displayError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{displayError}</AlertDescription>
-              </Alert>
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Alert variant="destructive" className="border-red-500/50 bg-red-500/10 text-red-200">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{displayError}</AlertDescription>
+                </Alert>
+              </motion.div>
             )}
             
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <motion.div 
+              className="space-y-2"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Label htmlFor="email" className="text-gray-300">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -176,19 +211,24 @@ export default function Login() {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-9"
+                  className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isLoading || isCleaningUp}
                   required
                 />
               </div>
-            </div>
+            </motion.div>
             
-            <div className="space-y-2">
+            <motion.div 
+              className="space-y-2"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-gray-300">Password</Label>
                 <Link 
                   href="/forgot-password"
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-purple-400 hover:text-purple-300 hover:underline"
                 >
                   Forgot password?
                 </Link>
@@ -201,17 +241,22 @@ export default function Login() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-9"
+                  className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isLoading || isCleaningUp}
                   required
                 />
               </div>
-            </div>
+            </motion.div>
 
-            <div className="pt-2">
+            <motion.div 
+              className="pt-2"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                 disabled={isLoading || isCleaningUp}
               >
                 {isLoading ? (
@@ -220,64 +265,89 @@ export default function Login() {
                     Signing in...
                   </>
                 ) : (
-                  'Sign in'
+                  <Sparkles text="Sign in" />
                 )}
               </Button>
-            </div>
+            </motion.div>
             
             {displayError && displayError.includes('session') && (
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full mt-2 border-orange-300 text-orange-600 hover:bg-orange-50"
-                onClick={handleCleanupSessions}
-                disabled={isLoading || isCleaningUp}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
               >
-                {isCleaningUp ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Fixing session issues...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCcw className="mr-2 h-4 w-4" />
-                    Fix Session Issues
-                  </>
-                )}
-              </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full mt-2 border-orange-300/50 text-orange-300 hover:bg-orange-500/20"
+                  onClick={handleCleanupSessions}
+                  disabled={isLoading || isCleaningUp}
+                >
+                  {isCleaningUp ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Fixing session issues...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                      Fix Session Issues
+                    </>
+                  )}
+                </Button>
+              </motion.div>
             )}
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-6">
-          <div className="relative w-full">
+          <motion.div 
+            className="relative w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+              <div className="w-full border-t border-gray-600/30" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">
-                or
+              <span className="bg-transparent px-2 text-gray-400">
+                or continue with
               </span>
             </div>
-          </div>
-          <Button 
-            variant="outline" 
-            className="w-full" 
-            disabled={isLoading || isCleaningUp}
-            onClick={handleGoogleLogin}
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
           >
-            Continue with Google
-          </Button>
-          <div className="text-center text-sm">
+            <Button 
+              variant="outline" 
+              className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" 
+              disabled={isLoading || isCleaningUp}
+              onClick={handleGoogleLogin}
+            >
+              Continue with Google
+            </Button>
+          </motion.div>
+          
+          <motion.div 
+            className="text-center text-sm text-gray-300"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+          >
             Don&apos;t have an account?{" "}
             <Link 
               href="/signup" 
-              className="text-primary hover:underline font-medium"
+              className="text-purple-400 hover:text-purple-300 hover:underline font-medium"
             >
               Sign up
             </Link>
-          </div>
+          </motion.div>
         </CardFooter>
       </Card>
+      </motion.div>
     </div>
   );
 }

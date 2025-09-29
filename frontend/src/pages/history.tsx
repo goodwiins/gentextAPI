@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import QuizHistoryTable from "@/components/quiz/QuizHistoryTable";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import { EnhancedHistory } from "@/components/aceternity";
 import { QuizItem, quizService } from "@/lib/quizService";
 
 export default function History() {
@@ -35,7 +36,7 @@ export default function History() {
 
       // Check if Appwrite config is valid
       if (!quizService.validateConfig()) {
-        throw new Error("Missing Appwrite configuration. Please check your environment variables.");
+        throw new Error("Missing Appwrite configuration. Please create a .env.local file with NEXT_PUBLIC_APPWRITE_DATABASE_ID and NEXT_PUBLIC_APPWRITE_COLLECTION_ID environment variables. See the setup guide for details.");
       }
       
       const offset = (page - 1) * pageSize;
@@ -116,35 +117,29 @@ export default function History() {
   }
 
   return (
-    <div className="container mx-auto py-10 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Quiz History</h1>
-        <Button
-          onClick={() => router.push('/')}
-          className="hidden md:flex"
-        >
-          <Icons.PlusCircle className="mr-2 h-4 w-4" />
-          Create New Quiz
-        </Button>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Saved Quizzes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading && !initialized ? (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
+      <div className="container mx-auto py-10">
+        {/* Enhanced History Component */}
+        {isLoading && !initialized ? (
+          <div className="flex items-center justify-center py-20">
             <LoadingSpinner message="Loading your quiz history..." />
-          ) : error ? (
+          </div>
+        ) : error ? (
+          <div className="max-w-2xl mx-auto">
             <ErrorMessage 
               title="Error loading quiz history"
               message={error}
-              description="This might be happening because of a database configuration issue or missing fields in the Appwrite collection."
+              description="This might be happening because of missing environment variables, database configuration issues, or missing fields in the Appwrite collection."
               actions={[
+                {
+                  label: "View Setup Guide",
+                  onClick: () => window.open('/appwrite-setup.md', '_blank'),
+                  variant: "default"
+                },
                 {
                   label: "Go to Setup Page",
                   onClick: () => router.push('/setup'),
-                  variant: "default"
+                  variant: "outline"
                 },
                 {
                   label: "Debug Connection",
@@ -160,23 +155,17 @@ export default function History() {
                 }
               ]}
             />
-          ) : quizzes.length === 0 ? (
-            <div className="py-8 space-y-4 text-center">
-              <Icons.FileQuestion className="h-16 w-16 mx-auto text-gray-400" />
-              <p className="text-gray-600 dark:text-gray-400">You haven&apos;t created any quizzes yet.</p>
-              <Button onClick={() => router.push('/')}>
-                Create Your First Quiz
-              </Button>
-            </div>
-          ) : (
-            <QuizHistoryTable 
-              quizzes={quizzes}
-              onDeleteSuccess={handleQuizDeleted}
-              onRefresh={refreshQuizzes}
-            />
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        ) : (
+          <EnhancedHistory
+            quizzes={quizzes}
+            onViewQuiz={(quiz) => router.push(`/quiz/${quiz.$id}`)}
+            onDeleteQuiz={handleQuizDeleted}
+            onRefresh={refreshQuizzes}
+            enableAnimations={true}
+          />
+        )}
+      </div>
     </div>
   );
 }

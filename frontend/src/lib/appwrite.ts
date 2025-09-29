@@ -47,10 +47,19 @@ export const appwriteAuth = {
     // Create a new account
     createAccount: async (email: string, password: string, firstName: string, lastName: string) => {
         try {
+            // First, create an anonymous session to get necessary permissions
+            try {
+                await account.createAnonymousSession();
+                console.log('Anonymous session created for registration');
+            } catch (sessionError: any) {
+                // If anonymous session fails, try to proceed anyway
+                console.warn('Anonymous session creation failed, proceeding with registration:', sessionError);
+            }
+            
             // Generate a valid ID that meets Appwrite's requirements
             const userId = formatUserId(ID.unique());
             
-            // Create the account first
+            // Create the account
             const response = await account.create(
                 userId,
                 email,
@@ -66,8 +75,17 @@ export const appwriteAuth = {
             });
 
             return response;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Appwrite service :: createAccount :: error', error);
+            console.error('Error type:', error.type);
+            console.error('Error message:', error.message);
+            console.error('Error code:', error.code);
+            
+            // Handle specific error for missing scopes
+            if (error.type === 'user_unauthorized' || error.message?.includes('missing scopes') || error.message?.includes('missing scopes (["account"])')) {
+                throw new Error('Registration failed due to permission restrictions. This is likely a temporary issue - please try again in a few minutes or contact support.');
+            }
+            
             throw error;
         }
     },
@@ -166,7 +184,7 @@ export const appwriteAuth = {
                 console.warn('Error checking existing sessions before OAuth:', sessionError);
             }
             
-            return await account.createOAuth2Session(
+            return account.createOAuth2Session(
                 provider as any,
                 `${window.location.origin}/`,
                 `${window.location.origin}/login`

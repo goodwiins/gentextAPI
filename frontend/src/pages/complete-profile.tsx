@@ -28,6 +28,16 @@ export default function CompleteProfile() {
     // Check auth state inside useEffect to avoid SSR issues
     if (!authState.user) {
       router.push('/login');
+      return;
+    }
+    
+    // Pre-fill form with existing data if available
+    const prefs = authState.user.prefs as Record<string, any>;
+    if (prefs.FirstName) {
+      setFirstName(prefs.FirstName);
+    }
+    if (prefs.LastName) {
+      setLastName(prefs.LastName);
     }
   }, [authState.user, router]);
 
