@@ -7,7 +7,7 @@ import { FeatureCard } from './FeatureCard';
 import { ProcessStep } from './ProcessStep';
 import { TestimonialCard } from './TestimonialCard';
 import { CtaSection } from './CtaSection';
-import type { HomepageLayoutProps, AuthUser, ConversionAction } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { HomepageLayoutProps, AuthUser, ConversionAction } from '@/types/analytics';
 import { 
   Brain, 
   Zap, 

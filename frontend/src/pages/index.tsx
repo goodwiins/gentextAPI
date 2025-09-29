@@ -3,7 +3,7 @@ import React from 'react';
 import { useRouter } from "next/router";
 import { HomepageLayout } from "@/components/home/HomepageLayout";
 import { useAuthContext } from "@/context/auth-context";
-import type { AuthUser, ConversionAction } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { AuthUser, ConversionAction } from '@/types/analytics';
 
 interface UserStats {
   quizzes: number;

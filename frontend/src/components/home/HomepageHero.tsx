@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useHomepageAnalytics } from '@/hooks/useHomepageAnalytics';
 import { Button } from '@/components/ui/button';
 import type { HomepageHeroProps, ConversionAction } from '@/types/analytics';
+import { SectionName, ConversionType } from '@/types/analytics';
 import { ArrowRight, BookOpen, Sparkles } from 'lucide-react';
 
 export function HomepageHero({ 
@@ -19,7 +20,7 @@ export function HomepageHero({
         eventType: action,
         eventData: {
           ctaText: user ? 'Generate Quiz' : 'Get Started',
-          ctaPosition: 'hero',
+          ctaPosition: SectionName.HERO,
           scrollDepth: 0,
           timeOnPage: 0
         },
@@ -119,7 +120,7 @@ export function HomepageHero({
               <>
                 <Button
                   size="xl"
-                  onClick={() => handleCtaClick('generate_clicked')}
+                  onClick={() => handleCtaClick(ConversionType.GENERATE_CLICKED)}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                   aria-label="Generate quiz"
                   tabIndex={0}
@@ -131,7 +132,7 @@ export function HomepageHero({
                 <Button
                   variant="outline"
                   size="xl"
-                  onClick={() => handleCtaClick('learn_more_clicked')}
+                  onClick={() => handleCtaClick(ConversionType.LEARN_MORE_CLICKED)}
                   className="border-2 border-gray-300 text-gray-700 hover:border-gray-400 font-semibold"
                   aria-label="Learn more about features"
                   tabIndex={0}
@@ -143,7 +144,7 @@ export function HomepageHero({
               <>
                 <Button
                   size="xl"
-                  onClick={() => handleCtaClick('signup_clicked')}
+                  onClick={() => handleCtaClick(ConversionType.SIGNUP_CLICKED)}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                   aria-label="Get started"
                   tabIndex={0}
@@ -154,7 +155,7 @@ export function HomepageHero({
                 <Button
                   variant="outline"
                   size="xl"
-                  onClick={() => handleCtaClick('login_clicked')}
+                  onClick={() => handleCtaClick(ConversionType.LOGIN_CLICKED)}
                   className="border-2 border-gray-300 text-gray-700 hover:border-gray-400 font-semibold"
                   aria-label="Sign in"
                   tabIndex={0}

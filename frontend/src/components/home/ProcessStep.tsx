@@ -12,7 +12,7 @@ export function ProcessStep({
   isLast = false,
   animationDirection = 'up'
 }: ProcessStepProps) {
-  const { isIntersecting } = useIntersectionObserver({
+  const [ref, { isIntersecting }] = useIntersectionObserver<HTMLLIElement>({
     threshold: 0.3,
     triggerOnce: true
   });
@@ -51,6 +51,7 @@ export function ProcessStep({
 
   return (
     <motion.li
+      ref={ref}
       role="listitem"
       variants={variants}
       initial="hidden"

@@ -14,9 +14,9 @@ interface UseIntersectionObserverOptions {
   enabled?: boolean;
 }
 
-export function useIntersectionObserver(
+export function useIntersectionObserver<T extends Element = Element>(
   options: UseIntersectionObserverOptions = {}
-): [React.RefObject<Element>, UseIntersectionObserverReturn] {
+): [React.RefObject<T>, UseIntersectionObserverReturn] {
   const {
     threshold = 0.1,
     root = null,
@@ -25,7 +25,7 @@ export function useIntersectionObserver(
     enabled = true
   } = options;
 
-  const elementRef = useRef<Element>(null);
+  const elementRef = useRef<T>(null);
   const [isIntersecting, setIsIntersecting] = useState(false);
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [entry, setEntry] = useState<IntersectionObserverEntry | null>(null);
@@ -95,11 +95,11 @@ export function useIntersectionObserver(
 /**
  * Hook variant for tracking multiple thresholds
  */
-export function useIntersectionObserverWithThresholds(
+export function useIntersectionObserverWithThresholds<T extends Element = Element>(
   thresholds: number[] = [0, 0.25, 0.5, 0.75, 1],
   options: Omit<UseIntersectionObserverOptions, 'threshold'> = {}
-): [React.RefObject<Element>, UseIntersectionObserverReturn & { intersectionRatio: number; visibleThresholds: number[] }] {
-  const [ref, observerReturn] = useIntersectionObserver({
+): [React.RefObject<T>, UseIntersectionObserverReturn & { intersectionRatio: number; visibleThresholds: number[] }] {
+  const [ref, observerReturn] = useIntersectionObserver<T>({
     ...options,
     threshold: thresholds
   });
@@ -127,10 +127,10 @@ export function useIntersectionObserverWithThresholds(
 /**
  * Hook for tracking when element enters viewport
  */
-export function useViewportEntry(
+export function useViewportEntry<T extends Element = Element>(
   options: UseIntersectionObserverOptions = {}
-): [React.RefObject<Element>, { hasEntered: boolean; entryTime: number | null }] {
-  const [ref, { hasBeenVisible }] = useIntersectionObserver({
+): [React.RefObject<T>, { hasEntered: boolean; entryTime: number | null }] {
+  const [ref, { hasBeenVisible }] = useIntersectionObserver<T>({
     ...options,
     triggerOnce: true
   });

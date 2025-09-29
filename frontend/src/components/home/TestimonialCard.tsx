@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
-import type { TestimonialCardProps } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { TestimonialCardProps } from '@/types/analytics';
 import { Star, Quote, CheckCircle } from 'lucide-react';
 
 export function TestimonialCard({ 
@@ -15,7 +15,7 @@ export function TestimonialCard({
   rating = 5,
   verified = false 
 }: TestimonialCardProps) {
-  const { isIntersecting } = useIntersectionObserver({
+  const [ref, { isIntersecting }] = useIntersectionObserver<HTMLElement>({
     threshold: 0.3,
     triggerOnce: true
   });
@@ -35,6 +35,7 @@ export function TestimonialCard({
 
   return (
     <motion.article
+      ref={ref}
       variants={{
         hidden: { opacity: 0, y: 30, scale: 0.95 },
         visible: { 

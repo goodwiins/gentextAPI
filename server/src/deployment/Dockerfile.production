@@ -1,0 +1,93 @@
+FROM python:3.9-slim AS dependencies
+
+WORKDIR /app
+
+# Install system dependencies optimized for DigitalOcean
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    python3 \
+    python3-pip \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy only requirements.txt first for better caching
+COPY requirements.txt ./
+
+# Install dependencies with optimizations for production
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install critical dependencies first
+RUN pip install --no-cache-dir \
+    backoff>=2.2.1 \
+    fastapi>=0.68.0 \
+    uvicorn>=0.15.0 \
+    pydantic[email]<2.0.0
+
+# Install ML dependencies with CPU optimizations
+RUN pip install --no-cache-dir \
+    torch==2.2.1+cpu \
+    torchvision==0.17.1+cpu \
+    torchaudio==2.2.1+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Download NLTK data
+RUN python3 -m nltk.downloader punkt
+
+# Download spaCy models
+RUN python3 -m spacy download en_core_web_sm
+
+# Pre-download and cache models (optimized for CPU)
+RUN python -c "from transformers import GPT2Tokenizer, GPT2LMHeadModel; tokenizer = GPT2Tokenizer.from_pretrained('gpt2-medium'); model = GPT2LMHeadModel.from_pretrained('gpt2-medium')"
+
+# Verify critical imports
+RUN python -c "from sentence_transformers import SentenceTransformer; print('Sentence transformers ready')"
+RUN python -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('spaCy ready')"
+
+# Production stage
+FROM python:3.9-slim AS production
+
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy Python packages from dependencies stage
+COPY --from=dependencies /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY --from=dependencies /usr/local/bin /usr/local/bin
+COPY --from=dependencies /root/.cache /root/.cache
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash app \
+    && chown -R app:app /app
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/.cache && \
+    chown -R app:app /app
+
+# Copy application code
+COPY --chown=app:app . .
+
+# Switch to non-root user
+USER app
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Production startup script
+RUN echo '#!/bin/bash\nset -e\ncd /app\nexport PYTHONPATH=/app:$PYTHONPATH\nuvicorn src.api.fastapi_app:app --host 0.0.0.0 --port 8000 --workers 2 --log-level info' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]

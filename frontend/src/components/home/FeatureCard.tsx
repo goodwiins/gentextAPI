@@ -14,7 +14,7 @@ export function FeatureCard({
   onView,
   onInteraction 
 }: FeatureCardProps) {
-  const { isIntersecting, hasBeenVisible } = useIntersectionObserver({
+  const [ref, { isIntersecting, hasBeenVisible }] = useIntersectionObserver({
     threshold: 0.5,
     triggerOnce: true
   });
@@ -55,7 +55,7 @@ export function FeatureCard({
       transition: { 
         duration: 0.6, 
         delay: animationDelay,
-        ease: "easeOut"
+        ease: "easeOut" as const
       }
     },
     hover: { 
@@ -63,7 +63,7 @@ export function FeatureCard({
       scale: 1.02,
       transition: { 
         duration: 0.3,
-        ease: "easeOut"
+        ease: "easeOut" as const
       }
     }
   };
@@ -81,7 +81,7 @@ export function FeatureCard({
       transition: { 
         duration: 0.5, 
         delay: animationDelay + 0.1,
-        ease: "easeOut"
+        ease: "easeOut" as const
       }
     },
     hover: {
@@ -89,7 +89,7 @@ export function FeatureCard({
       scale: 1.1,
       transition: {
         duration: 0.3,
-        ease: "easeOut"
+        ease: "easeOut" as const
       }
     }
   };

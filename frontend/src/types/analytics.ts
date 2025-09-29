@@ -126,6 +126,34 @@ export interface ProcessStepProps {
   animationDirection?: 'left' | 'right' | 'up' | 'down';
 }
 
+export interface TestimonialCardProps {
+  name: string;
+  role: string;
+  company?: string;
+  content: string;
+  avatar?: string;
+  rating?: number;
+  verified?: boolean;
+}
+
+export interface HomepageLayoutProps {
+  children: React.ReactNode;
+  user: any; // AuthUser | null
+  performanceMode?: 'high' | 'standard' | 'minimal';
+  analyticsEnabled?: boolean;
+}
+
+export interface AuthUser {
+  $id: string;
+  name: string;
+  email: string;
+  prefs: {
+    firstName?: string;
+    lastName?: string;
+    [key: string]: any;
+  };
+}
+
 // ================================
 // API REQUEST/RESPONSE TYPES
 // ================================

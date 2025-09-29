@@ -9,7 +9,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { analyticsService } from '@/lib/analytics-service';
 import { useAuthContext } from '@/context/auth-context';
 import { performanceManager } from '@/lib/performance';
-import type { AuthUser } from '@/specs/001-homepage-saas/contracts/frontend-components';
+import type { AuthUser } from '@/types/analytics';
+import { SectionName, EngagementType, ConversionType } from '@/types/analytics';
 
 interface AnalyticsContextType {
   sessionId: string;
@@ -18,8 +19,8 @@ interface AnalyticsContextType {
   startSession: () => void;
   endSession: () => void;
   trackPageView: (data: any) => Promise<void>;
-  trackConversion: (action: string, data?: any) => Promise<void>;
-  trackEngagement: (section: string, type: string, duration?: number) => Promise<void>;
+  trackConversion: (action: ConversionType, data?: any) => Promise<void>;
+  trackEngagement: (section: SectionName, type: EngagementType, duration?: number) => Promise<void>;
 }
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
@@ -101,11 +102,11 @@ export function AnalyticsProvider({ children, enabled = true }: AnalyticsProvide
   }, [isTracking]);
 
   // Track conversion events
-  const trackConversion = useCallback(async (action: string, data: any = {}) => {
+  const trackConversion = useCallback(async (action: ConversionType, data: any = {}) => {
     if (!isTracking) return;
 
     try {
-      await analyticsService.trackConversion(action as any, data, true);
+      await analyticsService.trackConversion(action, data, true);
     } catch (error) {
       console.error('[Analytics] Failed to track conversion:', error);
     }
@@ -113,8 +114,8 @@ export function AnalyticsProvider({ children, enabled = true }: AnalyticsProvide
 
   // Track engagement events
   const trackEngagement = useCallback(async (
-    section: string, 
-    type: string, 
+    section: SectionName, 
+    type: EngagementType, 
     duration: number = 0
   ) => {
     if (!isTracking) return;
@@ -236,8 +237,8 @@ export function useAnalytics() {
     trackEngagement: context.trackEngagement,
     
     // Convenience methods for common events
-    trackCTAClick: async (ctaText: string, ctaPosition: string) => {
-      await context.trackConversion('cta_clicked', {
+    trackCTAClick: async (ctaText: string, ctaPosition: SectionName) => {
+      await context.trackConversion(ConversionType.LEARN_MORE_CLICKED, {
         ctaText,
         ctaPosition,
         timestamp: new Date().toISOString()
@@ -245,11 +246,11 @@ export function useAnalytics() {
     },
     
     trackFeatureView: async (featureName: string) => {
-      await context.trackEngagement(featureName, 'view');
+      await context.trackEngagement(SectionName.FEATURES, EngagementType.VIEW);
     },
     
     trackFeatureInteraction: async (featureName: string, interactionType: string) => {
-      await context.trackEngagement(featureName, interactionType);
+      await context.trackEngagement(SectionName.FEATURES, EngagementType.INTERACT);
     }
   };
 }

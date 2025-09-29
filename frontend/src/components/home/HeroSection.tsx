@@ -13,7 +13,7 @@ import { SparklesCore } from '@/components/ui/sparkles';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { usePerformanceMonitor, useReducedMotion } from '@/hooks/usePerformanceMonitor';
+import usePerformanceMonitor from '@/hooks/usePerformanceMonitor';
 import { useIntersectionAnimation } from '@/lib/animations';
 
 interface TextGenerateEffectProps {
@@ -31,7 +31,8 @@ const TextGenerateEffect: React.FC<TextGenerateEffectProps> = ({
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { prefersReducedMotion } = useReducedMotion();
+  const prefersReducedMotion = typeof window !== 'undefined' && 
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   
   const wordsArray = useMemo(() => words.split(' '), [words]);
 
@@ -92,7 +93,8 @@ const TypewriterEffect: React.FC<TypewriterEffectProps> = ({
   const [currentText, setCurrentText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCursor, setShowCursor] = useState(true);
-  const { prefersReducedMotion } = useReducedMotion();
+  const prefersReducedMotion = typeof window !== 'undefined' && 
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const currentWord = words[currentWordIndex];
 
@@ -169,7 +171,8 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   style,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const { prefersReducedMotion } = useReducedMotion();
+  const prefersReducedMotion = typeof window !== 'undefined' && 
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   return (
     <div
@@ -226,11 +229,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     animation: { duration: 800, easing: 'ease-out' },
   });
 
-  const { startAnimation, endAnimation } = usePerformanceMonitor({
-    componentName: 'HeroSection',
-    trackAnimations: enableAnimations,
-    autoStart: true,
-  });
+  const { startMonitoring, stopMonitoring } = usePerformanceMonitor();
 
   const typewriterWords = useMemo(() => [
     { text: 'Educational Content', className: 'text-blue-400' },
@@ -270,10 +269,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   ], []);
 
   const handleGetStarted = useCallback(() => {
-    startAnimation('navigation');
+    startMonitoring();
     // Navigation will be handled by Next.js Link
-    setTimeout(() => endAnimation('navigation'), 500);
-  }, [startAnimation, endAnimation]);
+    setTimeout(() => stopMonitoring(), 500);
+  }, [startMonitoring, stopMonitoring]);
 
   return (
     <AuroraBackground className={cn('relative min-h-screen flex items-center justify-center', className)}>

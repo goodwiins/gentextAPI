@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { getCLS, getFCP, getFID, getLCP, getTTFB } from 'web-vitals';
+import { onCLS, onFCP, onFID, onLCP, onTTFB } from 'web-vitals';
 import { performanceManager } from '@/lib/performance';
 import type { UsePerformanceMonitorReturn, PageViewMetrics, WebVitalsMetrics } from '@/types/analytics';
 
@@ -34,31 +34,31 @@ export function usePerformanceMonitor(): UsePerformanceMonitorReturn {
     startTime.current = Date.now();
 
     try {
-      getLCP((metric) => {
+      onLCP((metric) => {
         const lcp = Math.round(metric.value);
         setWebVitals(prev => ({ ...prev, lcp }));
         updateMetrics({ lcp });
       });
 
-      getFCP((metric) => {
+      onFCP((metric) => {
         const fcp = Math.round(metric.value);
         setWebVitals(prev => ({ ...prev, fcp }));
         updateMetrics({ fcp });
       });
 
-      getCLS((metric) => {
+      onCLS((metric) => {
         const cls = Math.round(metric.value * 1000) / 1000;
         setWebVitals(prev => ({ ...prev, cls }));
         updateMetrics({ cls });
       });
 
-      getFID((metric) => {
+      onFID((metric) => {
         const fid = Math.round(metric.value);
         setWebVitals(prev => ({ ...prev, fid }));
         updateMetrics({ fid });
       });
 
-      getTTFB((metric) => {
+      onTTFB((metric) => {
         const ttfb = Math.round(metric.value);
         setWebVitals(prev => ({ ...prev, ttfb }));
         updateMetrics({ ttfb });

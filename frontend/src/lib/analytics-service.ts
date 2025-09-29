@@ -55,6 +55,13 @@ class AnalyticsService {
   }
 
   /**
+   * Generate a unique ID for analytics events
+   */
+  private generateId(): string {
+    return uuidv4();
+  }
+
+  /**
    * Set the current user ID for analytics tracking
    */
   setUserId(userId: string | null): void {
@@ -82,9 +89,10 @@ class AnalyticsService {
     }
 
     try {
-      const homepageMetrics: Omit<HomepageMetrics, 'id' | 'createdAt'> = {
+      const homepageMetrics: HomepageMetrics = {
+        id: this.generateId(),
         sessionId: this.sessionId,
-        userId: this.userId,
+        userId: this.userId || undefined,
         timestamp: new Date().toISOString(),
         pageView: metrics,
         userAgent: options?.userAgent || navigator.userAgent,
@@ -92,7 +100,8 @@ class AnalyticsService {
           width: window.innerWidth,
           height: window.innerHeight
         },
-        referrer: options?.referrer || document.referrer
+        referrer: options?.referrer || document.referrer,
+        createdAt: new Date().toISOString()
       };
 
       // Add to queue for batch processing
@@ -125,14 +134,16 @@ class AnalyticsService {
     }
 
     try {
-      const conversionEvent: Omit<ConversionEvent, 'id' | 'createdAt'> = {
+      const conversionEvent: ConversionEvent = {
+        id: this.generateId(),
         sessionId: this.sessionId,
-        userId: this.userId,
+        userId: this.userId || undefined,
         eventType,
         eventData,
         timestamp: new Date().toISOString(),
         successful,
-        errorMessage
+        errorMessage,
+        createdAt: new Date().toISOString()
       };
 
       // Add to queue
@@ -166,14 +177,16 @@ class AnalyticsService {
     }
 
     try {
-      const engagement: Omit<FeatureEngagement, 'id' | 'createdAt'> = {
+      const engagement: FeatureEngagement = {
+        id: this.generateId(),
         sessionId: this.sessionId,
         sectionName,
         engagementType,
         duration,
         scrollDepth,
         interactions,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       };
 
       // Add to queue
@@ -251,7 +264,7 @@ class AnalyticsService {
     return {
       enabled: this.isEnabled,
       sessionId: this.sessionId,
-      userId: this.userId,
+      userId: this.userId || undefined,
       queueSize: this.queue.length
     };
   }
@@ -310,7 +323,7 @@ class AnalyticsService {
   /**
    * Private: Process conversion event
    */
-  private async processConversionEvent(data: Omit<ConversionEvent, 'id' | 'createdAt'>): Promise<void> {
+  private async processConversionEvent(data: ConversionEvent): Promise<void> {
     try {
       await ConversionEventsService.create(data);
     } catch (error) {
@@ -322,7 +335,7 @@ class AnalyticsService {
   /**
    * Private: Process engagement event
    */
-  private async processEngagementEvent(data: Omit<FeatureEngagement, 'id' | 'createdAt'>): Promise<void> {
+  private async processEngagementEvent(data: FeatureEngagement): Promise<void> {
     try {
       await FeatureEngagementService.create(data);
     } catch (error) {

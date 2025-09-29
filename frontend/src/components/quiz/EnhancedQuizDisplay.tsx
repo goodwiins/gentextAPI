@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { usePerformanceMonitor, useReducedMotion } from '@/hooks/usePerformanceMonitor';
+import usePerformanceMonitor from '@/hooks/usePerformanceMonitor';
 import { useIntersectionAnimation, announceAnimationState } from '@/lib/animations';
 import { 
   EnhancedQuizDisplayProps, 
@@ -41,17 +41,15 @@ const QuizCard: React.FC<QuizCardProps> = ({
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
-  const { prefersReducedMotion } = useReducedMotion();
+  const prefersReducedMotion = typeof window !== 'undefined' && 
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   
-  const { startAnimation, endAnimation } = usePerformanceMonitor({
-    componentName: 'QuizCard',
-    trackAnimations: enableAnimations,
-  });
+  const { startMonitoring, stopMonitoring } = usePerformanceMonitor();
 
   const handleAnswer = useCallback((answerIndex: number) => {
     if (isAnswered) return;
     
-    startAnimation('answer-selection');
+    startMonitoring();
     onAnswer(answerIndex);
     
     // Show sparkles for correct answers
@@ -65,20 +63,20 @@ const QuizCard: React.FC<QuizCardProps> = ({
       }, 2000);
     }
     
-    endAnimation('answer-selection');
-  }, [isAnswered, onAnswer, question.correctAnswer, startAnimation, endAnimation]);
+    stopMonitoring();
+  }, [isAnswered, onAnswer, question.correctAnswer, startMonitoring, stopMonitoring]);
 
   const handleFlip = useCallback(() => {
     if (!enableAnimations || prefersReducedMotion) return;
     
-    startAnimation('card-flip');
+    startMonitoring();
     setIsFlipped(!isFlipped);
     announceAnimationState(isFlipped ? 'finished' : 'running', 'Card flip');
     
     setTimeout(() => {
-      endAnimation('card-flip');
+      stopMonitoring();
     }, 600);
-  }, [isFlipped, enableAnimations, prefersReducedMotion, startAnimation, endAnimation]);
+  }, [isFlipped, enableAnimations, prefersReducedMotion, startMonitoring, stopMonitoring]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -264,20 +262,17 @@ const QuizProgress: React.FC<{
   className?: string;
 }> = ({ current, total, accuracy, enableAnimations, className }) => {
   const progress = (current / total) * 100;
-  const { startAnimation, endAnimation } = usePerformanceMonitor({
-    componentName: 'QuizProgress',
-    trackAnimations: enableAnimations,
-  });
+  const { startMonitoring, stopMonitoring } = usePerformanceMonitor();
 
   useEffect(() => {
     if (enableAnimations) {
-      startAnimation('progress-update');
+      startMonitoring();
       const timer = setTimeout(() => {
-        endAnimation('progress-update');
+        stopMonitoring();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [current, enableAnimations, startAnimation, endAnimation]);
+  }, [current, enableAnimations, startMonitoring, stopMonitoring]);
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -319,11 +314,7 @@ export const EnhancedQuizDisplay: React.FC<EnhancedQuizDisplayProps> = ({
     animation: { duration: 600, easing: 'ease-out' },
   });
 
-  const { startAnimation, endAnimation } = usePerformanceMonitor({
-    componentName: 'EnhancedQuizDisplay',
-    trackAnimations: enableAnimations,
-    autoStart: true,
-  });
+  const { startMonitoring, stopMonitoring } = usePerformanceMonitor();
 
   const currentQuestion = questions[currentIndex];
   const accuracy = useMemo(() => {
@@ -338,7 +329,7 @@ export const EnhancedQuizDisplay: React.FC<EnhancedQuizDisplayProps> = ({
   }, [answeredQuestions, selectedAnswers, questions]);
 
   const handleAnswer = useCallback((questionId: string, answerIndex: number) => {
-    startAnimation('answer-processing');
+    startMonitoring();
     
     setAnsweredQuestions(prev => new Set([...prev, questionId]));
     setSelectedAnswers(prev => ({ ...prev, [questionId]: answerIndex }));
@@ -349,9 +340,9 @@ export const EnhancedQuizDisplay: React.FC<EnhancedQuizDisplayProps> = ({
       if (currentIndex < totalQuestions - 1) {
         onNext();
       }
-      endAnimation('answer-processing');
+      stopMonitoring();
     }, 1500);
-  }, [currentIndex, totalQuestions, onAnswer, onNext, startAnimation, endAnimation]);
+  }, [currentIndex, totalQuestions, onAnswer, onNext, startMonitoring, stopMonitoring]);
 
   const toggleCorrectAnswers = useCallback(() => {
     setShowCorrectAnswers(!showCorrectAnswers);
