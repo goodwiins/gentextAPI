@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir -v tokenizers==0.13.3
 RUN pip install --no-cache-dir -v --timeout 1000 -r requirements.txt || (echo "Failed to install dependencies!" && exit 1)
 
 # Download NLTK data
-RUN python3 -m nltk.downloader punkt
+RUN python3 -m nltk.downloader punkt punkt_tab
 
 # Download spaCy models
 RUN python3 -m spacy download en_core_web_sm
