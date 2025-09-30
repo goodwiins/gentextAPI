@@ -7,13 +7,14 @@ from functools import lru_cache
 import os
 from src.generators.improved_generator import ImprovedFalseStatementGenerator
 from src.generators.claude_generator import ClaudeFalseStatementGenerator
+from src.generators.grok_generator import XAIGrokFalseStatementGenerator
 
 logger = logging.getLogger(__name__)
 
 class StatementGeneratorFactory:
     """
     Factory class to provide statement generation strategies.
-    Currently supports GPT-2 and Claude based generation.
+    Currently supports GPT-2, Claude, and xAI Grok based generation.
     """
     
     def __init__(self, max_workers: int = None, model_cache_size: int = 2):
@@ -79,14 +80,27 @@ class StatementGeneratorFactory:
             logger.error(f"Detailed traceback: {traceback.format_exc()}")
             logger.error(f"Error type: {type(e).__name__}")
             # We'll leave self.generators['claude'] unset
+        
+        # Initialize the xAI Grok generator
+        try:
+            logger.info("Initializing xAI Grok generator...")
+            self.generators['grok'] = XAIGrokFalseStatementGenerator()
+            logger.info("xAI Grok generator initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize xAI Grok generator: {str(e)}", exc_info=True)
+            # Print more details about the error
+            import traceback
+            logger.error(f"Detailed traceback: {traceback.format_exc()}")
+            logger.error(f"Error type: {type(e).__name__}")
+            # We'll leave self.generators['grok'] unset
     
     @lru_cache(maxsize=32)
-    def get_generator(self, generator_type: str = 'gpt2') -> Optional[ImprovedFalseStatementGenerator]:
+    def get_generator(self, generator_type: str = 'gpt2') -> Optional[Union[ImprovedFalseStatementGenerator, ClaudeFalseStatementGenerator, XAIGrokFalseStatementGenerator]]:
         """
         Get a generator of the specified type with caching for frequent requests.
         
         Args:
-            generator_type: Type of generator to use (currently only 'gpt2')
+            generator_type: Type of generator to use ('gpt2', 'claude', 'grok')
             
         Returns:
             The requested generator instance or None if unavailable

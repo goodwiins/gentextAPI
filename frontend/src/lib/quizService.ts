@@ -5,6 +5,15 @@ import { client, databases } from './appwrite-config';
 const APPWRITE_DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '';
 const APPWRITE_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_ID || '';
 
+// Log environment variables for debugging (only in development)
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔧 Appwrite Environment Variables Check:');
+  console.log('- ENDPOINT:', process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ? '✅ Set' : '❌ Missing');
+  console.log('- PROJECT_ID:', process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ? '✅ Set' : '❌ Missing');
+  console.log('- DATABASE_ID:', APPWRITE_DATABASE_ID ? '✅ Set' : '❌ Missing');
+  console.log('- COLLECTION_ID:', APPWRITE_COLLECTION_ID ? '✅ Set' : '❌ Missing');
+}
+
 export interface QuizItem extends Models.Document {
   text: string;
   title: string;
@@ -35,11 +44,21 @@ export const quizService = {
    * Validate that required Appwrite configuration is present
    */
   validateConfig(): boolean {
-    return Boolean(
+    const isValid = Boolean(
       databases && 
       APPWRITE_DATABASE_ID && 
       APPWRITE_COLLECTION_ID
     );
+    
+    if (!isValid) {
+      console.error('Appwrite configuration validation failed:');
+      console.error('- databases:', !!databases);
+      console.error('- APPWRITE_DATABASE_ID:', APPWRITE_DATABASE_ID);
+      console.error('- APPWRITE_COLLECTION_ID:', APPWRITE_COLLECTION_ID);
+      console.error('Please check your .env.local file has these variables set.');
+    }
+    
+    return isValid;
   },
 
   /**

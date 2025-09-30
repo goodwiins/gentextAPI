@@ -1,0 +1,464 @@
+openapi: 3.0.3
+info:
+  title: Homepage Analytics API
+  description: API endpoints for tracking homepage performance and user behavior
+  version: 1.0.0
+  contact:
+    name: genText AI
+    url: https://github.com/goodwiins/gentextAPI
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.gentext.ai
+    description: Production server
+
+paths:
+  /analytics/homepage/metrics:
+    post:
+      summary: Record homepage performance metrics
+      description: Track page load performance and Core Web Vitals
+      operationId: recordHomepageMetrics
+      tags:
+        - Analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomepageMetricsRequest'
+            examples:
+              valid_metrics:
+                summary: Valid performance metrics
+                value:
+                  sessionId: "sess_abc123def456"
+                  userId: "user_789xyz"
+                  pageView:
+                    loadTime: 2450
+                    lcp: 1800
+                    fcp: 1200
+                    cls: 0.05
+                    fid: 85
+                  userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+                  viewport:
+                    width: 1920
+                    height: 1080
+                  referrer: "https://google.com"
+      responses:
+        '201':
+          description: Metrics recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analytics/homepage/conversions:
+    post:
+      summary: Record conversion events
+      description: Track user conversion actions (CTA clicks, sign-ups, etc.)
+      operationId: recordConversionEvent
+      tags:
+        - Analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversionEventRequest'
+            examples:
+              signup_click:
+                summary: User clicked signup CTA
+                value:
+                  sessionId: "sess_abc123def456"
+                  userId: null
+                  eventType: "signup_clicked"
+                  eventData:
+                    ctaText: "Get Started"
+                    ctaPosition: "hero"
+                    scrollDepth: 25
+                    timeOnPage: 45000
+                  successful: true
+      responses:
+        '201':
+          description: Conversion event recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResponse'
+        '400':
+          description: Invalid event data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analytics/homepage/engagement:
+    post:
+      summary: Record feature engagement
+      description: Track user engagement with homepage sections
+      operationId: recordFeatureEngagement
+      tags:
+        - Analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureEngagementRequest'
+            examples:
+              section_view:
+                summary: User viewed features section
+                value:
+                  sessionId: "sess_abc123def456"
+                  sectionName: "features"
+                  engagementType: "complete_view"
+                  duration: 12000
+                  scrollDepth: 100
+                  interactions: 3
+      responses:
+        '201':
+          description: Engagement recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResponse'
+        '400':
+          description: Invalid engagement data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analytics/homepage/summary:
+    get:
+      summary: Get homepage analytics summary
+      description: Retrieve aggregated analytics data for dashboard
+      operationId: getHomepageAnalytics
+      tags:
+        - Analytics
+      parameters:
+        - name: dateFrom
+          in: query
+          description: Start date for analytics range (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          description: End date for analytics range (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: groupBy
+          in: query
+          description: Group analytics by time period
+          required: false
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSummary'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HomepageMetricsRequest:
+      type: object
+      required:
+        - sessionId
+        - pageView
+        - userAgent
+        - viewport
+      properties:
+        sessionId:
+          type: string
+          maxLength: 128
+          description: Unique session identifier
+        userId:
+          type: string
+          nullable: true
+          description: Authenticated user ID
+        pageView:
+          $ref: '#/components/schemas/PageViewMetrics'
+        userAgent:
+          type: string
+          maxLength: 512
+          description: Browser user agent string
+        viewport:
+          $ref: '#/components/schemas/ViewportData'
+        referrer:
+          type: string
+          nullable: true
+          maxLength: 512
+          description: Referring URL
+
+    PageViewMetrics:
+      type: object
+      required:
+        - loadTime
+        - lcp
+        - fcp
+        - cls
+        - fid
+      properties:
+        loadTime:
+          type: number
+          minimum: 0
+          maximum: 30000
+          description: Total page load time in milliseconds
+        lcp:
+          type: number
+          minimum: 0
+          maximum: 10000
+          description: Largest Contentful Paint in milliseconds
+        fcp:
+          type: number
+          minimum: 0
+          maximum: 10000
+          description: First Contentful Paint in milliseconds
+        cls:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Cumulative Layout Shift score
+        fid:
+          type: number
+          minimum: 0
+          maximum: 1000
+          description: First Input Delay in milliseconds
+
+    ViewportData:
+      type: object
+      required:
+        - width
+        - height
+      properties:
+        width:
+          type: number
+          minimum: 320
+          maximum: 5000
+        height:
+          type: number
+          minimum: 240
+          maximum: 5000
+
+    ConversionEventRequest:
+      type: object
+      required:
+        - sessionId
+        - eventType
+        - eventData
+        - successful
+      properties:
+        sessionId:
+          type: string
+          maxLength: 128
+        userId:
+          type: string
+          nullable: true
+        eventType:
+          type: string
+          enum:
+            - signup_clicked
+            - login_clicked
+            - generate_clicked
+            - learn_more_clicked
+            - contact_clicked
+        eventData:
+          $ref: '#/components/schemas/ConversionEventData'
+        successful:
+          type: boolean
+        errorMessage:
+          type: string
+          nullable: true
+          maxLength: 512
+
+    ConversionEventData:
+      type: object
+      required:
+        - ctaText
+        - ctaPosition
+        - scrollDepth
+        - timeOnPage
+      properties:
+        ctaText:
+          type: string
+          maxLength: 100
+          description: Text content of the CTA button/link
+        ctaPosition:
+          type: string
+          enum: [hero, features, how-it-works, testimonials, footer]
+          description: Section where CTA is located
+        scrollDepth:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Percentage of page scrolled when CTA clicked
+        timeOnPage:
+          type: number
+          minimum: 0
+          description: Time spent on page before clicking CTA (ms)
+
+    FeatureEngagementRequest:
+      type: object
+      required:
+        - sessionId
+        - sectionName
+        - engagementType
+        - duration
+        - scrollDepth
+        - interactions
+      properties:
+        sessionId:
+          type: string
+          maxLength: 128
+        sectionName:
+          type: string
+          enum: [hero, features, testimonials, how-it-works, cta, footer]
+        engagementType:
+          type: string
+          enum: [view, interact, complete_view]
+        duration:
+          type: number
+          minimum: 0
+          maximum: 300000
+          description: Time spent in section (milliseconds)
+        scrollDepth:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Percentage of section viewed
+        interactions:
+          type: number
+          minimum: 0
+          description: Number of clicks/taps in section
+
+    AnalyticsResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Created record ID
+        status:
+          type: string
+          enum: [success]
+        timestamp:
+          type: string
+          format: date-time
+          description: When the record was created
+
+    AnalyticsSummary:
+      type: object
+      properties:
+        dateRange:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+        totalPageViews:
+          type: number
+        uniqueVisitors:
+          type: number
+        averageLoadTime:
+          type: number
+        conversionRate:
+          type: number
+          description: Percentage of visitors who converted
+        topConversionEvents:
+          type: array
+          items:
+            type: object
+            properties:
+              eventType:
+                type: string
+              count:
+                type: number
+              conversionRate:
+                type: number
+        performanceMetrics:
+          type: object
+          properties:
+            averageLCP:
+              type: number
+            averageFCP:
+              type: number
+            averageCLS:
+              type: number
+            averageFID:
+              type: number
+        sectionEngagement:
+          type: array
+          items:
+            type: object
+            properties:
+              sectionName:
+                type: string
+              viewRate:
+                type: number
+              averageDuration:
+                type: number
+              interactionRate:
+                type: number
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type identifier
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error context
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+security:
+  - ApiKey: []
+
+tags:
+  - name: Analytics
+    description: Homepage analytics and tracking endpoints

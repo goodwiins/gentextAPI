@@ -288,7 +288,11 @@ export const useEnhancedToast = () => {
         message: `"${title}" has been saved to your history.`,
         action: {
           label: 'View History',
-          onClick: () => window.location.href = '/history'
+          onClick: () => {
+            if (typeof window !== 'undefined') {
+              window.location.href = '/history';
+            }
+          }
         }
       });
     },
@@ -300,7 +304,11 @@ export const useEnhancedToast = () => {
         message: 'Please check your internet connection and try again.',
         action: {
           label: 'Retry',
-          onClick: () => window.location.reload()
+          onClick: () => {
+            if (typeof window !== 'undefined') {
+              window.location.reload();
+            }
+          }
         },
         persistent: true,
       });

@@ -18,6 +18,7 @@ type AuthContextType = {
   logout: () => Promise<void>;
   isUserAuthenticated: () => boolean;
   clearAuthError: () => void;
+  refreshAuth: () => Promise<void>;
 };
 
 type AuthProviderProps = {
@@ -87,18 +88,23 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       // Ensure the ID starts with a letter or number
       const finalUserId = /^[a-zA-Z0-9]/.test(formattedUserId) ? formattedUserId : `u${formattedUserId}`;
       
-      // Set the auth state with the user data we have
-      setAuthState({ user, session, isLoading: false, error: null });
-
       // Check if we need to redirect to complete profile
       const prefs = user.prefs as Record<string, any>;
-      if (!prefs.FirstName || !prefs.LastName || !prefs.UserId) {
-        // Update preferences with the formatted user ID
-        await account.updatePrefs({
+      const hasIncompleteProfile = !prefs.FirstName || !prefs.LastName || !prefs.UserId;
+      
+      // Always set the auth state with the user data we have
+      setAuthState({ user, session, isLoading: false, error: null });
+      
+      if (hasIncompleteProfile) {
+        // Update preferences with the formatted user ID (don't wait for this)
+        account.updatePrefs({
           FirstName: prefs.FirstName || '',
           LastName: prefs.LastName || '',
           UserId: finalUserId
+        }).catch(error => {
+          console.warn('Failed to update user preferences:', error);
         });
+        
         throw new Error('PROFILE_INCOMPLETE');
       }
     } catch (error: any) {
@@ -157,12 +163,36 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     return !!authState.user && !!authState.session;
   }, [authState.user, authState.session]);
 
+  const refreshAuth = useCallback(async (): Promise<void> => {
+    try {
+      setAuthState(prev => ({ ...prev, isLoading: true }));
+      const session = await account.getSession('current');
+      const user = await account.get();
+      
+      setAuthState({
+        user,
+        session,
+        isLoading: false,
+        error: null
+      });
+    } catch (error) {
+      console.error('Auth refresh failed:', error);
+      setAuthState({
+        user: null,
+        session: null,
+        isLoading: false,
+        error: null
+      });
+    }
+  }, []);
+
   const contextValue = {
     authState,
     login,
     logout,
     isUserAuthenticated,
-    clearAuthError
+    clearAuthError,
+    refreshAuth
   };
 
   return (
