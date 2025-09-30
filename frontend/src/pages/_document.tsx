@@ -4,14 +4,7 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* Preload critical fonts */}
-        <link
-          rel="preload"
-          href="/fonts/font-display.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
+        {/* Preconnects for webfonts */}
         
         {/* Preconnect to critical domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

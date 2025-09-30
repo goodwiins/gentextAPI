@@ -11,7 +11,7 @@ import { Icons } from '@/components/Icons';
 import { toast } from 'react-hot-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const MotionCard = motion(Card);
+const MotionCard = motion.create(Card);
 
 export default function Details() {
   const [userData, setUserData] = useState({ first_name: '', email: '', last_name: '', id: '' });
