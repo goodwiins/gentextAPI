@@ -165,6 +165,14 @@ export const quizService = {
     }
 
     try {
+      console.log('🔍 Fetching quizzes with config:', {
+        databaseId: APPWRITE_DATABASE_ID,
+        collectionId: APPWRITE_COLLECTION_ID,
+        userId,
+        limit,
+        offset
+      });
+
       const queries = [
         Query.equal('userId', userId),
         orderDesc ? Query.orderDesc('createdAt') : Query.orderAsc('createdAt'),
@@ -177,15 +185,35 @@ export const quizService = {
         queries.push(Query.search('text', searchTerm));
       }
 
+      console.log('📝 Executing queries:', queries);
+
       const response = await databases.listDocuments(
         APPWRITE_DATABASE_ID,
         APPWRITE_COLLECTION_ID,
         queries
       );
 
+      console.log('✅ Quizzes fetched successfully:', response.total, 'documents');
       return response.documents as QuizItem[];
-    } catch (error) {
-      console.error('Error fetching quizzes:', error);
+    } catch (error: any) {
+      console.error('❌ Error fetching quizzes:', {
+        message: error?.message,
+        code: error?.code,
+        type: error?.type,
+        response: error?.response
+      });
+
+      // Provide more specific error messages
+      if (error?.code === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error?.code === 404) {
+        throw new Error('Collection not found. Please check your database configuration.');
+      } else if (error?.message?.includes('Invalid query')) {
+        throw new Error('Database query failed. The collection might be missing required attributes (text, title, userId, createdAt, questions).');
+      } else if (error?.message?.includes('permission') || error?.code === 403) {
+        throw new Error('Permission denied. Please check collection permissions allow reading documents where userId matches.');
+      }
+
       throw error;
     }
   },
