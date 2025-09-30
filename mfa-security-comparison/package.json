@@ -1,0 +1,42 @@
+{
+  "name": "mfa-security-comparison",
+  "version": "1.0.0",
+  "description": "Simulated environment to demonstrate and compare authentication security across multiple MFA scenarios",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "simulate:all": "node src/attacks/run-all-simulations.js",
+    "simulate:credential-stuffing": "node src/attacks/credential-stuffing.js",
+    "simulate:brute-force": "node src/attacks/brute-force.js",
+    "simulate:phishing": "node src/attacks/phishing.js",
+    "report": "node src/metrics/generate-report.js",
+    "report:visual": "node src/metrics/generate-visual-report.js"
+  },
+  "keywords": [
+    "mfa",
+    "security",
+    "authentication",
+    "2fa",
+    "cybersecurity",
+    "defensive-security"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "speakeasy": "^2.0.0",
+    "otplib": "^12.0.1",
+    "@simplewebauthn/server": "^9.0.3",
+    "bcrypt": "^5.1.1",
+    "uuid": "^9.0.1",
+    "chalk": "^4.1.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.11"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
