@@ -12,11 +12,21 @@ const client = new Client()
     .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
     .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
 
-// Only initialize subscription on the client side
+// Only initialize subscription on the client side with error handling
 if (typeof window !== 'undefined') {
-    client.subscribe('*', (response) => {
-        console.log('Appwrite Response:', response);
-    });
+    try {
+        // Only enable real-time in production or when explicitly enabled
+        const enableRealtime = process.env.NEXT_PUBLIC_ENABLE_REALTIME === 'true';
+
+        if (enableRealtime) {
+            client.subscribe('*', (response) => {
+                console.log('Appwrite Response:', response);
+            });
+        }
+    } catch (error) {
+        // Silently fail if WebSocket connection fails (e.g., security restrictions)
+        console.debug('Appwrite real-time subscription not available:', error);
+    }
 }
 
 export const account = new Account(client);
