@@ -36,6 +36,9 @@ export function TestimonialCard({
   return (
     <motion.article
       ref={ref}
+      role="article"
+      aria-label={`Testimonial from ${name}`}
+      data-testid={`testimonial-${name.toLowerCase().replace(/\s+/g, '-')}`}
       variants={{
         hidden: { opacity: 0, y: 30, scale: 0.95 },
         visible: { 
@@ -85,14 +88,24 @@ export function TestimonialCard({
           {avatar ? (
             <img 
               src={avatar} 
-              alt={name}
+              alt={`${name}'s profile picture`}
               className="w-12 h-12 rounded-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                // Fallback to initials on image load error
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const fallback = target.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
             />
-          ) : (
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
-              {name.charAt(0)}
-            </div>
-          )}
+          ) : null}
+          <div 
+            className={`w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-lg ${avatar ? 'hidden' : ''}`}
+            aria-label={`${name}'s initials`}
+          >
+            {name.charAt(0).toUpperCase()}
+          </div>
         </div>
 
         {/* Author Info */}

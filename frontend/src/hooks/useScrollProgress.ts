@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useThrottledCallback } from 'use-debounce';
 import type { UseScrollProgressReturn } from '@/types/analytics';
+import type { UseScrollProgressReturn as ContractReturn } from '../../../specs/001-homepage-saas/contracts/frontend-components';
 
 interface UseScrollProgressOptions {
   throttleMs?: number;
@@ -16,7 +17,7 @@ interface UseScrollProgressOptions {
 
 export function useScrollProgress(
   options: UseScrollProgressOptions = {}
-): UseScrollProgressReturn {
+): ContractReturn {
   const {
     throttleMs = 16, // ~60fps
     element,
@@ -143,8 +144,7 @@ export function useScrollProgress(
     scrollProgress,
     scrollDirection,
     isAtTop,
-    isAtBottom,
-    elementProgress
+    isAtBottom
   };
 }
 

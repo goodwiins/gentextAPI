@@ -6,7 +6,7 @@ Setup for database connections and operations
 import os
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class DatabaseService:
             if '_id' not in document:
                 document['_id'] = f"doc_{len(self.collections[collection_name]) + 1}"
             
-            document['_created_at'] = datetime.utcnow().isoformat()
+            document['_created_at'] = datetime.now(timezone.utc).isoformat()
             
             # Store document
             self.collections[collection_name].append(document)
@@ -82,7 +82,7 @@ class DatabaseService:
             for i, doc in enumerate(collection):
                 if doc.get('_id') == document_id:
                     collection[i].update(updates)
-                    collection[i]['_updated_at'] = datetime.utcnow().isoformat()
+                    collection[i]['_updated_at'] = datetime.now(timezone.utc).isoformat()
                     return collection[i]
             
             raise ValueError(f"Document {document_id} not found in {collection_name}")

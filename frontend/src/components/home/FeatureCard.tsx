@@ -14,7 +14,7 @@ export function FeatureCard({
   onView,
   onInteraction 
 }: FeatureCardProps) {
-  const [ref, { isIntersecting, hasBeenVisible }] = useIntersectionObserver({
+  const [ref, { isIntersecting, hasBeenVisible }] = useIntersectionObserver<HTMLElement>({
     threshold: 0.5,
     triggerOnce: true
   });
@@ -96,8 +96,11 @@ export function FeatureCard({
 
   return (
     <motion.article
+      ref={ref}
       role="article"
       tabIndex={0}
+      aria-label={`Feature: ${title}`}
+      data-testid={`feature-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
       variants={cardVariants}
       initial="hidden"
       animate={isIntersecting ? "visible" : "hidden"}

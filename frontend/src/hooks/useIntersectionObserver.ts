@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { UseIntersectionObserverReturn } from '@/types/analytics';
+import type { UseIntersectionObserverReturn as ContractReturn } from '../../../specs/001-homepage-saas/contracts/frontend-components';
 
 interface UseIntersectionObserverOptions {
   threshold?: number | number[];
@@ -16,7 +17,7 @@ interface UseIntersectionObserverOptions {
 
 export function useIntersectionObserver<T extends Element = Element>(
   options: UseIntersectionObserverOptions = {}
-): [React.RefObject<T>, UseIntersectionObserverReturn] {
+): [React.RefObject<T>, ContractReturn] {
   const {
     threshold = 0.1,
     root = null,

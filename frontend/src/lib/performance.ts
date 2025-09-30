@@ -289,7 +289,42 @@ export class PerformanceManager {
 
   endAnimation(animationId: string): PerformanceMetrics | null {
     if (!this.isEnabled) return null;
-    return this.animationTracker.endAnimation(animationId);
+    
+    const metrics = this.animationTracker.endAnimation(animationId);
+    
+    // Send animation performance metrics to analytics
+    if (metrics) {
+      this.reportAnimationMetrics(animationId, metrics);
+    }
+    
+    return metrics;
+  }
+
+  /**
+   * Report animation performance metrics to analytics
+   */
+  private reportAnimationMetrics(animationId: string, metrics: PerformanceMetrics): void {
+    // Only report poor performance to avoid noise
+    if (metrics.frameRate < DEFAULT_PERFORMANCE_BUDGET.minFrameRate || 
+        metrics.memoryUsage > DEFAULT_PERFORMANCE_BUDGET.maxMemoryUsage ||
+        metrics.droppedFrames > 10) {
+      
+      analyticsService.trackEngagement(
+        SectionName.FEATURES, // Animations are typically part of features
+        EngagementType.INTERACT, // Animation is an interaction
+        metrics.loadTime, // Duration of animation
+        0, // No scroll depth for animations
+        1  // One animation interaction
+      ).catch(error => {
+        console.warn(`[Performance] Failed to report animation metrics for ${animationId}:`, error);
+      });
+
+      console.warn(`[Performance] Poor animation performance for ${animationId}:`, {
+        frameRate: metrics.frameRate,
+        droppedFrames: metrics.droppedFrames,
+        memoryUsage: metrics.memoryUsage
+      });
+    }
   }
 
   getOverallMetrics(): {
@@ -355,10 +390,36 @@ export class PerformanceManager {
       }
     };
 
-    // Send to analytics
-    analyticsService.trackPageView(pageViewMetrics).catch(error => {
-      console.error('Failed to track page view metrics:', error);
-    });
+    // Send to analytics with enhanced error handling and retry logic
+    this.sendMetricsToAnalytics(pageViewMetrics, 'pageLoad');
+  }
+
+  /**
+   * Send metrics to analytics with retry logic
+   */
+  private async sendMetricsToAnalytics(
+    metrics: PageViewMetrics, 
+    source: string,
+    retryCount: number = 0
+  ): Promise<void> {
+    const maxRetries = 3;
+    const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+
+    try {
+      await analyticsService.trackPageView(metrics);
+      console.log(`[Performance] Successfully sent ${source} metrics to analytics`);
+    } catch (error) {
+      console.error(`[Performance] Failed to send ${source} metrics (attempt ${retryCount + 1}):`, error);
+      
+      // Retry with exponential backoff
+      if (retryCount < maxRetries) {
+        setTimeout(() => {
+          this.sendMetricsToAnalytics(metrics, source, retryCount + 1);
+        }, retryDelay);
+      } else {
+        console.error(`[Performance] Failed to send ${source} metrics after ${maxRetries} attempts`);
+      }
+    }
   }
 
   /**
@@ -368,27 +429,44 @@ export class PerformanceManager {
     if (typeof window === 'undefined' || !('PerformanceObserver' in window)) return;
 
     try {
-      // Track Core Web Vitals
+      // Track Core Web Vitals with automatic analytics reporting
       const vitalsObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
           const metric = entry as any;
+          let metricName = '';
+          let metricValue = 0;
           
           switch (metric.name) {
             case 'LCP':
               this.webVitalsMetrics.lcp = Math.round(metric.startTime);
+              metricName = 'LCP';
+              metricValue = this.webVitalsMetrics.lcp;
               break;
             case 'FCP':
               this.webVitalsMetrics.fcp = Math.round(metric.startTime);
+              metricName = 'FCP';
+              metricValue = this.webVitalsMetrics.fcp;
               break;
             case 'CLS':
               this.webVitalsMetrics.cls = Math.round(metric.value * 1000) / 1000;
+              metricName = 'CLS';
+              metricValue = this.webVitalsMetrics.cls;
               break;
             case 'FID':
               this.webVitalsMetrics.fid = Math.round(metric.duration);
+              metricName = 'FID';
+              metricValue = this.webVitalsMetrics.fid;
               break;
             case 'TTFB':
               this.webVitalsMetrics.ttfb = Math.round(metric.startTime);
+              metricName = 'TTFB';
+              metricValue = this.webVitalsMetrics.ttfb;
               break;
+          }
+
+          // Send individual Web Vital metric to analytics for real-time monitoring
+          if (metricName) {
+            this.reportWebVitalMetric(metricName, metricValue);
           }
         });
       });
@@ -396,6 +474,49 @@ export class PerformanceManager {
       vitalsObserver.observe({ entryTypes: ['largest-contentful-paint', 'first-contentful-paint', 'layout-shift', 'first-input'] });
     } catch (error) {
       console.warn('Failed to setup Web Vitals tracking:', error);
+    }
+  }
+
+  /**
+   * Report individual Web Vital metric to analytics
+   */
+  private reportWebVitalMetric(metricName: string, value: number): void {
+    // Create a performance engagement event for the Web Vital
+    analyticsService.trackEngagement(
+      SectionName.HERO, // Use HERO as the default section for page-level metrics
+      EngagementType.VIEW, // Use VIEW for performance metrics
+      value, // Duration represents the metric value
+      0, // No scroll depth for performance metrics
+      0  // No interactions for performance metrics
+    ).catch(error => {
+      console.warn(`[Performance] Failed to report ${metricName} metric:`, error);
+    });
+
+    // Log performance warnings based on Web Vitals thresholds
+    this.checkPerformanceThresholds(metricName, value);
+  }
+
+  /**
+   * Check performance thresholds and warn about poor performance
+   */
+  private checkPerformanceThresholds(metricName: string, value: number): void {
+    const thresholds: Record<string, { good: number; poor: number }> = {
+      'LCP': { good: 2500, poor: 4000 },
+      'FCP': { good: 1800, poor: 3000 },
+      'CLS': { good: 0.1, poor: 0.25 },
+      'FID': { good: 100, poor: 300 },
+      'TTFB': { good: 800, poor: 1800 }
+    };
+
+    const threshold = thresholds[metricName];
+    if (!threshold) return;
+
+    if (value > threshold.poor) {
+      console.warn(`⚠️ Poor ${metricName} performance: ${value} (threshold: ${threshold.poor})`);
+    } else if (value > threshold.good) {
+      console.warn(`⚠️ Needs improvement ${metricName}: ${value} (threshold: ${threshold.good})`);
+    } else {
+      console.log(`✅ Good ${metricName} performance: ${value}`);
     }
   }
 
@@ -462,16 +583,521 @@ export class PerformanceManager {
   getWebVitalsMetrics(): WebVitalsMetrics {
     return { ...this.webVitalsMetrics };
   }
+
+  /**
+   * Get comprehensive performance summary and optionally send to analytics
+   */
+  getPerformanceSummary(sendToAnalytics: boolean = false): {
+    webVitals: WebVitalsMetrics;
+    bundleSize: number;
+    memoryUsage: number;
+    frameRate: number;
+    animationCount: number;
+    componentCount: number;
+    sessionDuration: number;
+  } {
+    const sessionDuration = performance.now() - this.sessionStartTime;
+    const overallMetrics = this.getOverallMetrics();
+    
+    const summary = {
+      webVitals: this.getWebVitalsMetrics(),
+      bundleSize: overallMetrics.bundleSize,
+      memoryUsage: this.getCurrentMemoryUsage(),
+      frameRate: this.getAverageFrameRate(),
+      animationCount: overallMetrics.animationMetrics.size,
+      componentCount: overallMetrics.loadedComponents.length,
+      sessionDuration: Math.round(sessionDuration)
+    };
+
+    if (sendToAnalytics) {
+      // Create a comprehensive page view metric
+      const comprehensiveMetrics: PageViewMetrics = {
+        loadTime: summary.sessionDuration,
+        lcp: summary.webVitals.lcp || 0,
+        fcp: summary.webVitals.fcp || 0,
+        cls: summary.webVitals.cls || 0,
+        fid: summary.webVitals.fid || 0,
+        ttfb: summary.webVitals.ttfb || 0,
+        bundleSize: summary.bundleSize,
+        memoryUsage: summary.memoryUsage,
+        frameRate: summary.frameRate,
+        domContentLoaded: 0, // Not applicable for summary
+        viewport: typeof window !== 'undefined' ? {
+          width: window.innerWidth,
+          height: window.innerHeight
+        } : { width: 0, height: 0 }
+      };
+
+      this.sendMetricsToAnalytics(comprehensiveMetrics, 'performanceSummary');
+    }
+
+    return summary;
+  }
+
+  /**
+   * Force a performance summary report to analytics
+   */
+  reportPerformanceSummary(): void {
+    this.getPerformanceSummary(true);
+  }
 }
 
 // Export singleton instance
 export const performanceManager = PerformanceManager.getInstance();
 
+/**
+ * Performance Optimization Strategies
+ * Based on monitoring data and test results
+ */
+
+/**
+ * Adaptive Performance Manager
+ * Automatically adjusts performance settings based on device capabilities
+ */
+export class AdaptivePerformanceManager {
+  private static instance: AdaptivePerformanceManager;
+  private deviceCapabilities: DeviceCapabilities;
+  private performanceMode: 'high' | 'standard' | 'low' = 'standard';
+
+  static getInstance(): AdaptivePerformanceManager {
+    if (!AdaptivePerformanceManager.instance) {
+      AdaptivePerformanceManager.instance = new AdaptivePerformanceManager();
+    }
+    return AdaptivePerformanceManager.instance;
+  }
+
+  constructor() {
+    this.deviceCapabilities = this.detectDeviceCapabilities();
+    this.performanceMode = this.determinePerformanceMode();
+  }
+
+  getPerformanceMode(): 'high' | 'standard' | 'low' {
+    return this.performanceMode;
+  }
+
+  shouldReduceAnimations(): boolean {
+    // Check for reduced motion preference
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReducedMotion) return true;
+    }
+
+    // Check device capabilities
+    return this.performanceMode === 'low';
+  }
+
+  shouldOptimizeImages(): boolean {
+    return this.performanceMode === 'low' || this.deviceCapabilities.connectionType === 'slow';
+  }
+
+  shouldLazyLoadComponents(): boolean {
+    return this.performanceMode !== 'high';
+  }
+
+  getOptimalAnimationDuration(defaultDuration: number): number {
+    switch (this.performanceMode) {
+      case 'high':
+        return defaultDuration;
+      case 'standard':
+        return defaultDuration * 0.8;
+      case 'low':
+        return defaultDuration * 0.5;
+      default:
+        return defaultDuration;
+    }
+  }
+
+  private detectDeviceCapabilities(): DeviceCapabilities {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return { memory: 4, cores: 2, connectionType: 'unknown' };
+    }
+
+    const memory = (navigator as any).deviceMemory || 4; // GB
+    const cores = navigator.hardwareConcurrency || 2;
+    
+    // Detect connection type
+    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+    let connectionType: 'fast' | 'medium' | 'slow' | 'unknown' = 'unknown';
+    
+    if (connection) {
+      if (connection.effectiveType === '4g' || connection.effectiveType === '5g') {
+        connectionType = 'fast';
+      } else if (connection.effectiveType === '3g') {
+        connectionType = 'medium';
+      } else {
+        connectionType = 'slow';
+      }
+    }
+
+    return { memory, cores, connectionType };
+  }
+
+  private determinePerformanceMode(): 'high' | 'standard' | 'low' {
+    const { memory, cores, connectionType } = this.deviceCapabilities;
+
+    // High performance: 8GB+ RAM, 4+ cores, fast connection
+    if (memory >= 8 && cores >= 4 && connectionType === 'fast') {
+      return 'high';
+    }
+
+    // Low performance: <2GB RAM, <2 cores, or slow connection
+    if (memory < 2 || cores < 2 || connectionType === 'slow') {
+      return 'low';
+    }
+
+    // Standard performance for everything else
+    return 'standard';
+  }
+}
+
+interface DeviceCapabilities {
+  memory: number; // GB
+  cores: number;
+  connectionType: 'fast' | 'medium' | 'slow' | 'unknown';
+}
+
+/**
+ * Bundle Size Optimizer
+ * Implements code splitting and lazy loading strategies
+ */
+export class BundleSizeOptimizer {
+  private static instance: BundleSizeOptimizer;
+  private loadedChunks = new Set<string>();
+  private chunkSizes = new Map<string, number>();
+  private criticalChunks = new Set(['main', 'vendor', 'runtime']);
+
+  static getInstance(): BundleSizeOptimizer {
+    if (!BundleSizeOptimizer.instance) {
+      BundleSizeOptimizer.instance = new BundleSizeOptimizer();
+    }
+    return BundleSizeOptimizer.instance;
+  }
+
+  /**
+   * Preload critical chunks
+   */
+  preloadCriticalChunks(): void {
+    if (typeof window === 'undefined') return;
+
+    // Preload critical CSS and JS chunks
+    this.criticalChunks.forEach(chunkName => {
+      this.preloadChunk(chunkName);
+    });
+  }
+
+  /**
+   * Lazy load non-critical components
+   */
+  async lazyLoadComponent<T>(
+    componentLoader: () => Promise<T>,
+    componentName: string,
+    fallback?: React.ComponentType
+  ): Promise<T> {
+    const startTime = performance.now();
+    
+    try {
+      const component = await componentLoader();
+      
+      const loadTime = performance.now() - startTime;
+      this.trackChunkLoad(componentName, loadTime);
+      
+      return component;
+    } catch (error) {
+      console.error(`Failed to lazy load component ${componentName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Optimize image loading based on device capabilities
+   */
+  getOptimizedImageProps(src: string, alt: string): {
+    src: string;
+    alt: string;
+    loading: 'lazy' | 'eager';
+    sizes?: string;
+  } {
+    const adaptiveManager = AdaptivePerformanceManager.getInstance();
+    const shouldOptimize = adaptiveManager.shouldOptimizeImages();
+
+    return {
+      src: shouldOptimize ? this.getOptimizedImageSrc(src) : src,
+      alt,
+      loading: adaptiveManager.shouldLazyLoadComponents() ? 'lazy' : 'eager',
+      sizes: shouldOptimize ? this.getResponsiveSizes() : undefined
+    };
+  }
+
+  private preloadChunk(chunkName: string): void {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'script';
+    link.href = `/chunks/${chunkName}.js`; // Adjust path as needed
+    document.head.appendChild(link);
+  }
+
+  private trackChunkLoad(chunkName: string, loadTime: number): void {
+    this.loadedChunks.add(chunkName);
+    this.chunkSizes.set(chunkName, loadTime);
+
+    // Warn about slow chunk loading
+    if (loadTime > 1000) {
+      console.warn(`⚠️ Slow chunk load: ${chunkName} took ${loadTime.toFixed(2)}ms`);
+    }
+  }
+
+  private getOptimizedImageSrc(src: string): string {
+    // Implement image optimization logic (WebP, compression, etc.)
+    return src.replace(/\.(jpg|jpeg|png)$/, '.webp');
+  }
+
+  private getResponsiveSizes(): string {
+    return '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw';
+  }
+}
+
+/**
+ * Memory Optimizer
+ * Manages memory usage and prevents memory leaks
+ */
+export class MemoryOptimizer {
+  private static instance: MemoryOptimizer;
+  private cleanupTasks = new Set<() => void>();
+  private memoryThreshold = 50; // MB
+  private checkInterval: NodeJS.Timeout | null = null;
+
+  static getInstance(): MemoryOptimizer {
+    if (!MemoryOptimizer.instance) {
+      MemoryOptimizer.instance = new MemoryOptimizer();
+    }
+    return MemoryOptimizer.instance;
+  }
+
+  startMonitoring(): void {
+    if (this.checkInterval) return;
+
+    this.checkInterval = setInterval(() => {
+      this.checkMemoryUsage();
+    }, 30000); // Check every 30 seconds
+  }
+
+  stopMonitoring(): void {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+  }
+
+  addCleanupTask(task: () => void): void {
+    this.cleanupTasks.add(task);
+  }
+
+  removeCleanupTask(task: () => void): void {
+    this.cleanupTasks.delete(task);
+  }
+
+  forceCleanup(): void {
+    // Run all cleanup tasks
+    this.cleanupTasks.forEach(task => {
+      try {
+        task();
+      } catch (error) {
+        console.error('Cleanup task failed:', error);
+      }
+    });
+
+    // Force garbage collection if available
+    if ('gc' in window && typeof (window as any).gc === 'function') {
+      (window as any).gc();
+    }
+  }
+
+  private checkMemoryUsage(): void {
+    if (typeof window === 'undefined' || !('memory' in performance)) return;
+
+    const memory = (performance as any).memory;
+    const usedMB = memory.usedJSHeapSize / 1024 / 1024;
+
+    if (usedMB > this.memoryThreshold) {
+      console.warn(`⚠️ High memory usage: ${usedMB.toFixed(2)}MB > ${this.memoryThreshold}MB`);
+      this.forceCleanup();
+    }
+  }
+}
+
+/**
+ * Performance Optimization Utility Functions
+ */
+export const PerformanceOptimizer = {
+  /**
+   * Debounce function to limit function calls
+   */
+  debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+  ): (...args: Parameters<T>) => void {
+    let timeout: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  },
+
+  /**
+   * Throttle function to limit function calls
+   */
+  throttle<T extends (...args: any[]) => any>(
+    func: T,
+    limit: number
+  ): (...args: Parameters<T>) => void {
+    let inThrottle: boolean;
+    return (...args: Parameters<T>) => {
+      if (!inThrottle) {
+        func(...args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    };
+  },
+
+  /**
+   * Intersection Observer with performance optimizations
+   */
+  createOptimizedIntersectionObserver(
+    callback: IntersectionObserverCallback,
+    options?: IntersectionObserverInit
+  ): IntersectionObserver | null {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      return null;
+    }
+
+    const adaptiveManager = AdaptivePerformanceManager.getInstance();
+    const optimizedOptions = {
+      rootMargin: '10px',
+      threshold: adaptiveManager.getPerformanceMode() === 'low' ? [0] : [0, 0.25, 0.5, 0.75, 1],
+      ...options
+    };
+
+    return new IntersectionObserver(callback, optimizedOptions);
+  },
+
+  /**
+   * Optimized RAF for animations
+   */
+  createOptimizedAnimationFrame(
+    callback: FrameRequestCallback
+  ): number | null {
+    if (typeof window === 'undefined') return null;
+
+    const adaptiveManager = AdaptivePerformanceManager.getInstance();
+    
+    if (adaptiveManager.shouldReduceAnimations()) {
+      // Skip animation frames on low-performance devices
+      setTimeout(() => callback(performance.now()), 16);
+      return null;
+    }
+
+    return requestAnimationFrame(callback);
+  },
+
+  /**
+   * Preload resources based on priority
+   */
+  preloadResource(href: string, as: string, priority: 'high' | 'low' = 'low'): void {
+    if (typeof document === 'undefined') return;
+
+    const link = document.createElement('link');
+    link.rel = priority === 'high' ? 'preload' : 'prefetch';
+    link.href = href;
+    link.as = as;
+    
+    if (priority === 'high') {
+      link.crossOrigin = 'anonymous';
+    }
+
+    document.head.appendChild(link);
+  }
+};
+
+// Initialize optimization singletons
+export const adaptivePerformanceManager = AdaptivePerformanceManager.getInstance();
+export const bundleSizeOptimizer = BundleSizeOptimizer.getInstance();
+export const memoryOptimizer = MemoryOptimizer.getInstance();
+
+// Enhanced performance manager with optimizations
+export class EnhancedPerformanceManager extends PerformanceManager {
+  private adaptiveManager = AdaptivePerformanceManager.getInstance();
+  private bundleOptimizer = BundleSizeOptimizer.getInstance();
+  private memoryOptimizer = MemoryOptimizer.getInstance();
+
+  enable(): void {
+    super.enable();
+    
+    // Start adaptive optimizations
+    this.bundleOptimizer.preloadCriticalChunks();
+    this.memoryOptimizer.startMonitoring();
+    
+    // Set up performance monitoring based on device capabilities
+    this.setupAdaptiveMonitoring();
+  }
+
+  disable(): void {
+    super.disable();
+    this.memoryOptimizer.stopMonitoring();
+  }
+
+  private setupAdaptiveMonitoring(): void {
+    const mode = this.adaptiveManager.getPerformanceMode();
+    
+    // Adjust monitoring frequency based on performance mode
+    const monitoringInterval = mode === 'high' ? 5000 : mode === 'standard' ? 10000 : 20000;
+    
+    setInterval(() => {
+      const summary = this.getPerformanceSummary();
+      this.optimizeBasedOnMetrics(summary);
+    }, monitoringInterval);
+  }
+
+  private optimizeBasedOnMetrics(summary: any): void {
+    // Bundle size optimization
+    if (summary.bundleSize > 400) { // KB
+      console.warn('⚠️ Bundle size approaching limit, consider code splitting');
+    }
+
+    // Memory optimization
+    if (summary.memoryUsage > 40) { // MB
+      this.memoryOptimizer.forceCleanup();
+    }
+
+    // Frame rate optimization
+    if (summary.frameRate < 45) {
+      console.warn('⚠️ Low frame rate detected, reducing animation complexity');
+    }
+  }
+}
+
+// Export enhanced performance manager
+export const enhancedPerformanceManager = new EnhancedPerformanceManager();
+
 // Development helpers
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   // Make performance manager available globally for debugging
   (window as any).__performanceManager = performanceManager;
+  (window as any).__enhancedPerformanceManager = enhancedPerformanceManager;
+  (window as any).__adaptivePerformanceManager = adaptivePerformanceManager;
   
   // Auto-enable in development
-  performanceManager.enable();
+  enhancedPerformanceManager.enable();
+  
+  // Add performance debugging commands
+  (window as any).__performanceDebug = {
+    getMetrics: () => enhancedPerformanceManager.getPerformanceSummary(),
+    getDeviceCapabilities: () => adaptivePerformanceManager,
+    optimizeMemory: () => memoryOptimizer.forceCleanup(),
+    togglePerformanceMode: () => {
+      const currentMode = adaptivePerformanceManager.getPerformanceMode();
+      console.log(`Current performance mode: ${currentMode}`);
+      console.log('Device capabilities:', adaptivePerformanceManager);
+    }
+  };
 }

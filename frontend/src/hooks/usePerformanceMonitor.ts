@@ -1,17 +1,21 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { onCLS, onFCP, onFID, onLCP, onTTFB } from 'web-vitals';
-import { performanceManager } from '@/lib/performance';
 import type { UsePerformanceMonitorReturn, PageViewMetrics, WebVitalsMetrics } from '@/types/analytics';
+import type { 
+  UsePerformanceMonitorReturn as ContractReturn,
+  PerformanceMetrics 
+} from '../../../specs/001-homepage-saas/contracts/frontend-components';
+import { analyticsService } from '@/lib/analytics-service';
 
-export function usePerformanceMonitor(): UsePerformanceMonitorReturn {
-  const [metrics, setMetrics] = useState<PageViewMetrics | null>(null);
+export function usePerformanceMonitor(): ContractReturn {
+  const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [webVitals, setWebVitals] = useState<WebVitalsMetrics>({});
 
   const startTime = useRef<number>(Date.now());
-  const metricsRef = useRef<Partial<PageViewMetrics>>({});
+  const metricsRef = useRef<Partial<PerformanceMetrics>>({});
 
-  const updateMetrics = useCallback((newMetrics: Partial<PageViewMetrics>) => {
+  const updateMetrics = useCallback((newMetrics: Partial<PerformanceMetrics>) => {
     metricsRef.current = { ...metricsRef.current, ...newMetrics };
     
     const hasRequiredMetrics = 
@@ -22,7 +26,7 @@ export function usePerformanceMonitor(): UsePerformanceMonitorReturn {
       metricsRef.current.fid !== undefined;
 
     if (hasRequiredMetrics) {
-      const completeMetrics = metricsRef.current as PageViewMetrics;
+      const completeMetrics = metricsRef.current as PerformanceMetrics;
       setMetrics(completeMetrics);
     }
   }, []);
@@ -72,7 +76,7 @@ export function usePerformanceMonitor(): UsePerformanceMonitorReturn {
     updateMetrics({ loadTime });
   }, [isMonitoring, updateMetrics]);
 
-  const stopMonitoring = useCallback((): PageViewMetrics | null => {
+  const stopMonitoring = useCallback((): PerformanceMetrics | null => {
     if (!isMonitoring) return metrics;
 
     setIsMonitoring(false);
@@ -81,7 +85,7 @@ export function usePerformanceMonitor(): UsePerformanceMonitorReturn {
     const finalMetrics = {
       ...metricsRef.current,
       loadTime: finalLoadTime
-    } as PageViewMetrics;
+    } as PerformanceMetrics;
 
     setMetrics(finalMetrics);
     return finalMetrics;
@@ -92,6 +96,12 @@ export function usePerformanceMonitor(): UsePerformanceMonitorReturn {
       console.warn('No metrics available to report');
       return;
     }
+
+    try {
+      await analyticsService.trackPageViewMetrics(metrics);
+    } catch (error) {
+      console.error('Failed to report performance metrics:', error);
+    }
   }, [metrics]);
 
   useEffect(() => {
@@ -101,15 +111,14 @@ export function usePerformanceMonitor(): UsePerformanceMonitorReturn {
         stopMonitoring();
       }
     };
-  }, []);
+  }, [startMonitoring, stopMonitoring, isMonitoring]);
 
   return {
     metrics,
     isMonitoring,
     startMonitoring,
     stopMonitoring,
-    reportMetrics,
-    webVitals
+    reportMetrics
   };
 }
 

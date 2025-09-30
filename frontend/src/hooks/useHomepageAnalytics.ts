@@ -13,8 +13,14 @@ import type {
   FeatureEngagement,
   ConversionEventData
 } from '@/types/analytics';
+import type {
+  UseHomepageAnalyticsReturn,
+  AnalyticsEvent,
+  SectionEngagement,
+  PerformanceMetrics
+} from '../../../specs/001-homepage-saas/contracts/frontend-components';
 
-export function useHomepageAnalytics(): UseAnalyticsReturn {
+export function useHomepageAnalytics(): UseHomepageAnalyticsReturn {
   const { user } = useAuth();
   const sessionStartTime = useRef<number>(Date.now());
   const isInitialized = useRef<boolean>(false);
@@ -33,16 +39,9 @@ export function useHomepageAnalytics(): UseAnalyticsReturn {
   /**
    * Track page view performance metrics
    */
-  const trackPageView = useCallback(async (metrics: PageViewMetrics): Promise<void> => {
+  const trackPageView = useCallback(async (metrics: PerformanceMetrics): Promise<void> => {
     try {
-      await analyticsService.trackPageView(metrics, {
-        userAgent: navigator.userAgent,
-        viewport: {
-          width: window.innerWidth,
-          height: window.innerHeight
-        },
-        referrer: document.referrer
-      });
+      await analyticsService.trackPageViewMetrics(metrics);
     } catch (error) {
       console.error('Failed to track page view:', error);
       // Don't throw to prevent breaking the UI
@@ -53,32 +52,18 @@ export function useHomepageAnalytics(): UseAnalyticsReturn {
    * Track conversion events (CTA clicks, form submissions, etc.)
    */
   const trackConversion = useCallback(async (
-    event: Omit<ConversionEvent, 'id' | 'sessionId' | 'timestamp' | 'createdAt'>
+    event: Omit<AnalyticsEvent, 'sessionId' | 'timestamp'>
   ): Promise<void> => {
     try {
-      // Calculate time on page
-      const timeOnPage = Date.now() - sessionStartTime.current;
-      
-      // Get current scroll position as percentage
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const scrollDepth = scrollHeight > 0 ? Math.round((scrollTop / scrollHeight) * 100) : 0;
-
-      // Enhance event data with automatic metrics
-      const enhancedEventData: ConversionEventData = {
-        ...event.eventData,
-        scrollDepth: event.eventData.scrollDepth || Math.max(0, Math.min(100, scrollDepth)),
-        timeOnPage: event.eventData.timeOnPage || timeOnPage
-      };
-
-      await analyticsService.trackConversion(
-        event.eventType,
-        enhancedEventData,
-        event.successful,
-        event.errorMessage
-      );
+      await analyticsService.trackConversionEvent(event);
     } catch (error) {
       console.error('Failed to track conversion:', error);
+      // Track the error as a failed conversion
+      try {
+        await analyticsService.trackConversionError(event, error instanceof Error ? error.message : 'Unknown error');
+      } catch (trackingError) {
+        console.error('Failed to track conversion error:', trackingError);
+      }
       // Don't throw to prevent breaking the UI
     }
   }, []);
@@ -87,30 +72,13 @@ export function useHomepageAnalytics(): UseAnalyticsReturn {
    * Track section engagement
    */
   const trackEngagement = useCallback(async (
-    engagement: Omit<FeatureEngagement, 'id' | 'sessionId' | 'timestamp' | 'createdAt'>
+    engagement: Omit<SectionEngagement, 'sessionId'>
   ): Promise<void> => {
     try {
-      await analyticsService.trackEngagement(
-        engagement.sectionName,
-        engagement.engagementType,
-        engagement.duration,
-        engagement.scrollDepth,
-        engagement.interactions
-      );
+      await analyticsService.trackSectionEngagement(engagement);
     } catch (error) {
       console.error('Failed to track engagement:', error);
       // Don't throw to prevent breaking the UI
-    }
-  }, []);
-
-  /**
-   * Manually flush queued analytics events
-   */
-  const flush = useCallback(async (): Promise<void> => {
-    try {
-      await analyticsService.flush();
-    } catch (error) {
-      console.error('Failed to flush analytics:', error);
     }
   }, []);
 
@@ -129,8 +97,7 @@ export function useHomepageAnalytics(): UseAnalyticsReturn {
     trackConversion,
     trackEngagement,
     sessionId,
-    isTracking,
-    flush
+    isTracking
   };
 }
 

@@ -36,7 +36,7 @@ export function ProcessStep({
       case 'down':
         return {
           hidden: { ...baseHidden, y: -50 },
-          visible: {baseVisible, y: 0 }
+          visible: { ...baseVisible, y: 0 }
         };
       case 'up':
       default:

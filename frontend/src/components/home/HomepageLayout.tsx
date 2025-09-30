@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useHomepageAnalytics } from '@/hooks/useHomepageAnalytics';
 import { HomepageHero } from './HomepageHero';
 import { FeatureCard } from './FeatureCard';
 import { ProcessStep } from './ProcessStep';
@@ -27,23 +28,42 @@ export function HomepageLayout({
   performanceMode = 'standard',
   analyticsEnabled = true 
 }: HomepageLayoutProps) {
+  const { trackEngagement } = useHomepageAnalytics();
+  
+  // Check for reduced motion preference
+  const prefersReducedMotion = typeof window !== 'undefined' && 
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   const handleCtaClick = (action: ConversionAction) => {
     // Handle CTA clicks - could navigate to different pages
     console.log('CTA clicked:', action);
     
-    // Example navigation logic
+    // Example navigation logic - in a real app, use Next.js router
     switch (action) {
       case 'signup_clicked':
         // Navigate to signup page
+        if (typeof window !== 'undefined') {
+          window.location.href = '/signup';
+        }
         break;
       case 'login_clicked':
         // Navigate to login page
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
         break;
       case 'generate_clicked':
         // Navigate to quiz generation page
+        if (typeof window !== 'undefined') {
+          window.location.href = '/generate';
+        }
         break;
       case 'learn_more_clicked':
-        // Navigate to features page or scroll to features
+        // Scroll to features section
+        const featuresSection = document.getElementById('features-section');
+        if (featuresSection) {
+          featuresSection.scrollIntoView({ behavior: 'smooth' });
+        }
         break;
       default:
         break;
@@ -53,12 +73,26 @@ export function HomepageLayout({
   const handleFeatureView = (featureId: string) => {
     if (analyticsEnabled) {
       console.log('Feature viewed:', featureId);
+      trackEngagement({
+        sectionName: 'features',
+        engagementType: 'view',
+        duration: 0,
+        scrollDepth: 50,
+        interactions: 0
+      }).catch(console.error);
     }
   };
 
   const handleFeatureInteraction = (featureId: string, interactionType: string) => {
     if (analyticsEnabled) {
       console.log('Feature interaction:', featureId, interactionType);
+      trackEngagement({
+        sectionName: 'features',
+        engagementType: 'interact',
+        duration: 0,
+        scrollDepth: 50,
+        interactions: 1
+      }).catch(console.error);
     }
   };
 
@@ -153,12 +187,16 @@ export function HomepageLayout({
       />
 
       {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <section 
+        id="features-section"
+        className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50"
+        data-test-section="features"
+      >
         <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={prefersReducedMotion ? {} : { duration: 0.6 }}
             viewport={{ once: true }}
             className="text-center mb-16"
           >
@@ -187,12 +225,16 @@ export function HomepageLayout({
       </section>
 
       {/* Process Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section 
+        id="how-it-works-section"
+        className="py-20 px-4 sm:px-6 lg:px-8 bg-white"
+        data-test-section="how-it-works"
+      >
         <div className="max-w-4xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={prefersReducedMotion ? {} : { duration: 0.6 }}
             viewport={{ once: true }}
             className="text-center mb-16"
           >
@@ -223,12 +265,16 @@ export function HomepageLayout({
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <section 
+        id="testimonials-section"
+        className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50"
+        data-test-section="testimonials"
+      >
         <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={prefersReducedMotion ? {} : { duration: 0.6 }}
             viewport={{ once: true }}
             className="text-center mb-16"
           >

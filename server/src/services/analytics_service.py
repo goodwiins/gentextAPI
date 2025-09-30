@@ -5,7 +5,7 @@ Business logic for analytics data processing and aggregation
 
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 import statistics
 
@@ -29,7 +29,7 @@ class AnalyticsService:
             # Store in homepage_metrics collection
             document = {
                 **metrics_data,
-                'createdAt': datetime.utcnow().isoformat(),
+                'createdAt': datetime.now(timezone.utc).isoformat(),
                 'type': 'homepage_metrics'
             }
             
@@ -47,7 +47,7 @@ class AnalyticsService:
         try:
             document = {
                 **event_data,
-                'createdAt': datetime.utcnow().isoformat(),
+                'createdAt': datetime.now(timezone.utc).isoformat(),
                 'type': 'conversion_event'
             }
             
@@ -65,7 +65,7 @@ class AnalyticsService:
         try:
             document = {
                 **engagement_data,
-                'createdAt': datetime.utcnow().isoformat(),
+                'createdAt': datetime.now(timezone.utc).isoformat(),
                 'type': 'feature_engagement'
             }
             
@@ -198,7 +198,7 @@ class AnalyticsService:
                 top_events.append({
                     'eventType': event_type,
                     'count': counts['total'],
-                    'successRate': round(success_rate, 2)
+                    'conversionRate': round(success_rate, 2)
                 })
             
             # Sort by count
@@ -261,14 +261,13 @@ class AnalyticsService:
                 
                 section_stats.append({
                     'sectionName': section,
-                    'totalViews': data['views'],
+                    'viewRate': data['views'],  # Total views for this section
                     'averageDuration': round(avg_duration, 2),
-                    'averageScrollDepth': round(avg_scroll_depth, 2),
                     'interactionRate': round(interaction_rate, 2)
                 })
             
             # Sort by views
-            section_stats.sort(key=lambda x: x['totalViews'], reverse=True)
+            section_stats.sort(key=lambda x: x['viewRate'], reverse=True)
             
             return {
                 'section_stats': section_stats
@@ -305,7 +304,7 @@ class AnalyticsService:
         Clean up old analytics data ( GDPR compliance )
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
             
             # Clean up old data from all collections
             collections = ['homepage_metrics', 'conversion_events', 'feature_engagement']

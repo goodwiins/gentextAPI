@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useHomepageAnalytics } from '@/hooks/useHomepageAnalytics';
 import { Button } from '@/components/ui/button';
-import type { HomepageHeroProps, ConversionAction } from '@/types/analytics';
+import type { HomepageHeroProps, ConversionAction, AuthUser } from '@/types/analytics';
 import { SectionName, ConversionType } from '@/types/analytics';
 import { ArrowRight, BookOpen, Sparkles } from 'lucide-react';
 
@@ -15,21 +15,24 @@ export function HomepageHero({
   const { trackConversion } = useHomepageAnalytics();
 
   const handleCtaClick = async (action: ConversionAction) => {
+    // Fire the callback immediately for better UX
+    onCtaClick(action);
+    
+    // Track conversion asynchronously (don't await to avoid blocking UI)
     try {
       await trackConversion({
+        userId: user?.$id,
         eventType: action,
         eventData: {
           ctaText: user ? 'Generate Quiz' : 'Get Started',
           ctaPosition: SectionName.HERO,
-          scrollDepth: 0,
-          timeOnPage: 0
-        },
-        successful: true
+          scrollDepth: Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100),
+          timeOnPage: Date.now() - (window.performance?.timeOrigin || Date.now())
+        }
       });
-      onCtaClick(action);
     } catch (error) {
       console.error('Failed to track conversion:', error);
-      onCtaClick(action);
+      // Don't throw to prevent breaking the UI
     }
   };
 
@@ -57,7 +60,13 @@ export function HomepageHero({
     : getAnimationProps();
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <section 
+      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50"
+      role="banner"
+      aria-label="Homepage hero section"
+      data-testid="homepage-hero"
+      data-test-section="hero"
+    >
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-32 w-80 h-80 bg-purple-300 rounded-full opacity-20 blur-3xl" />

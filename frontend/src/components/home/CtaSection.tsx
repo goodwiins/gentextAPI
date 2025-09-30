@@ -23,14 +23,14 @@ export function CtaSection({
     
     // Track conversion asynchronously (don't await)
     trackConversion({
+      userId: user?.$id,
       eventType: action,
       eventData: {
         ctaText: user ? 'Generate Quiz' : 'Get Started',
         ctaPosition: SectionName.CTA,
-        scrollDepth: 0,
-        timeOnPage: 0
-      },
-      successful: true
+        scrollDepth: Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100),
+        timeOnPage: Date.now() - (window.performance?.timeOrigin || Date.now())
+      }
     }).catch(error => {
       console.error('Failed to track conversion:', error);
     });
@@ -100,6 +100,8 @@ export function CtaSection({
     <section 
       role="region"
       aria-label="Call to action"
+      data-testid="cta-section"
+      data-test-section="cta"
       className={`relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden ${backgroundClasses}`}
     >
       {/* Background Pattern */}

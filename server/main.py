@@ -1,4 +1,4 @@
-import uvicornx
+import uvicorn
 from src.api.fastapi_app import app
 
 if __name__ == "__main__":

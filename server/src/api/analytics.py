@@ -5,7 +5,7 @@ FastAPI endpoints for homepage analytics data collection and reporting
 
 from fastapi import APIRouter, HTTPException, Query, Body, BackgroundTasks
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
 import uuid
 import logging
@@ -24,15 +24,15 @@ analytics_service = AnalyticsService()
 
 # Pydantic models for request/response
 class PageViewMetrics(BaseModel):
-    loadTime: float = Field(..., gt=0, le=30000, description="Page load time in milliseconds")
+    loadTime: float = Field(..., ge=0, le=30000, description="Page load time in milliseconds")
     lcp: float = Field(..., ge=0, le=10000, description="Largest Contentful Paint in milliseconds")
     fcp: float = Field(..., ge=0, le=10000, description="First Contentful Paint in milliseconds")
     cls: float = Field(..., ge=0, le=1, description="Cumulative Layout Shift")
-    fid: Optional[float] = Field(None, ge=0, le=1000, description="First Input Delay in milliseconds")
+    fid: float = Field(..., ge=0, le=1000, description="First Input Delay in milliseconds")
 
 class ViewportData(BaseModel):
-    width: int = Field(..., gt=0, le=5000, description="Viewport width in pixels")
-    height: int = Field(..., gt=0, le=5000, description="Viewport height in pixels")
+    width: int = Field(..., ge=320, le=5000, description="Viewport width in pixels")
+    height: int = Field(..., ge=240, le=5000, description="Viewport height in pixels")
 
 class HomepageMetricsRequest(BaseModel):
     sessionId: str = Field(..., max_length=128, description="Session identifier")
@@ -84,7 +84,7 @@ class AnalyticsSummaryResponse(BaseModel):
     sectionEngagement: List[Dict[str, Any]]
 
 # Endpoint: POST /analytics/homepage/metrics
-@router.post("/homepage/metrics", response_model=AnalyticsResponse)
+@router.post("/homepage/metrics", response_model=AnalyticsResponse, status_code=201)
 async def track_homepage_metrics(
     request: HomepageMetricsRequest,
     background_tasks: BackgroundTasks
@@ -112,7 +112,7 @@ async def track_homepage_metrics(
             id=str(uuid.uuid4()),
             status="success",
             message="Homepage metrics recorded successfully",
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except Exception as e:
@@ -120,7 +120,7 @@ async def track_homepage_metrics(
         raise HTTPException(status_code=500, detail="Failed to record homepage metrics")
 
 # Endpoint: POST /analytics/homepage/conversions
-@router.post("/homepage/conversions", response_model=AnalyticsResponse)
+@router.post("/homepage/conversions", response_model=AnalyticsResponse, status_code=201)
 async def track_conversion_event(
     request: ConversionEventRequest,
     background_tasks: BackgroundTasks
@@ -138,6 +138,14 @@ async def track_conversion_event(
             raise HTTPException(
                 status_code=400, 
                 detail=f"Invalid event type. Must be one of: {valid_event_types}"
+            )
+        
+        # Validate CTA position
+        valid_cta_positions = ['hero', 'features', 'how-it-works', 'testimonials', 'footer']
+        if request.eventData.ctaPosition not in valid_cta_positions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid CTA position. Must be one of: {valid_cta_positions}"
             )
         
         # Validate timestamp
@@ -158,7 +166,7 @@ async def track_conversion_event(
             id=str(uuid.uuid4()),
             status="success",
             message="Conversion event recorded successfully",
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except HTTPException:
@@ -168,7 +176,7 @@ async def track_conversion_event(
         raise HTTPException(status_code=500, detail="Failed to record conversion event")
 
 # Endpoint: POST /analytics/homepage/engagement
-@router.post("/homepage/engagement", response_model=AnalyticsResponse)
+@router.post("/homepage/engagement", response_model=AnalyticsResponse, status_code=201)
 async def track_feature_engagement(
     request: FeatureEngagementRequest,
     background_tasks: BackgroundTasks
@@ -211,7 +219,7 @@ async def track_feature_engagement(
             id=str(uuid.uuid4()),
             status="success",
             message="Feature engagement recorded successfully",
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except HTTPException:
@@ -223,8 +231,9 @@ async def track_feature_engagement(
 # Endpoint: GET /analytics/homepage/summary
 @router.get("/homepage/summary", response_model=AnalyticsSummaryResponse)
 async def get_analytics_summary(
-    date_from: str = Query(..., description="Start date (ISO format)"),
-    date_to: str = Query(..., description="End date (ISO format)"),
+    date_from: Optional[str] = Query(None, description="Start date (ISO format)", alias="dateFrom"),
+    date_to: Optional[str] = Query(None, description="End date (ISO format)", alias="dateTo"),
+    group_by: str = Query("day", description="Group analytics by time period", alias="groupBy"),
     background_tasks: BackgroundTasks = None
 ):
     """
@@ -232,12 +241,30 @@ async def get_analytics_summary(
     Returns aggregated metrics, conversion rates, and engagement data
     """
     try:
-        # Validate date format
-        try:
-            start_date = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
-            end_date = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format")
+        # Set default date range if not provided (last 30 days)
+        if not date_from:
+            start_date = datetime.now(timezone.utc) - timedelta(days=30)
+        else:
+            try:
+                start_date = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid dateFrom format")
+        
+        if not date_to:
+            end_date = datetime.now(timezone.utc)
+        else:
+            try:
+                end_date = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid dateTo format")
+        
+        # Validate group_by parameter
+        valid_group_by = ['hour', 'day', 'week', 'month']
+        if group_by not in valid_group_by:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid groupBy. Must be one of: {valid_group_by}"
+            )
         
         # Validate date range
         if start_date > end_date:
@@ -279,5 +306,5 @@ async def analytics_health():
     return {
         "status": "healthy",
         "service": "analytics",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }

@@ -33,6 +33,29 @@ DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 MAX_WORKERS = int(os.getenv("MAX_THREAD_WORKERS", os.cpu_count() or 4))
 MODEL_DEVICE = os.getenv("MODEL_DEVICE", None)  # Allow environment override of model device
 
+# Enhanced CORS origins for analytics
+ANALYTICS_CORS_ORIGINS = [
+    # Development origins
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    
+    # Production origins
+    "https://gentext-api.vercel.app",
+    "https://your-production-domain.com",
+    
+    # CDN origins for analytics scripts
+    "https://cdn.jsdelivr.net",
+    "https://unpkg.com",
+    
+    # Development server origins
+    "http://167.71.90.100:3000",
+    "http://167.71.90.100",
+    
+    # Add any additional analytics-specific origins
+] + CORS_ORIGINS
+
 app = FastAPI(
     title="GenText API",
     description="API for generating false statements and Q&A from text",
@@ -43,20 +66,55 @@ app = FastAPI(
     debug=DEBUG
 )
 
-# Add CORSMiddleware with configurable origins
+# Add enhanced CORSMiddleware with analytics support
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=ANALYTICS_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=[
+        "*",
+        # Standard headers
+        "Authorization",
+        "Content-Type",
+        "X-Requested-With",
+        
+        # Analytics specific headers
+        "X-Session-ID",
+        "X-User-ID", 
+        "X-Analytics-Version",
+        "X-Performance-Metrics",
+        "X-Client-Timestamp",
+        
+        # Performance monitoring headers
+        "X-Page-Load-Time",
+        "X-Memory-Usage",
+        "X-Bundle-Size",
+        
+        # Custom analytics headers
+        "X-Section-Name",
+        "X-Engagement-Type",
+        "X-Conversion-Event",
+    ],
+    expose_headers=[
+        # Standard response headers to expose
+        "X-Request-ID",
+        "X-Process-Time", 
+        "X-Timestamp",
+        "X-Server-Instance",
+        
+        # Analytics response headers
+        "X-Analytics-Received",
+        "X-Performance-Score",
+        "X-Rate-Limit-Remaining",
+    ],
     max_age=86400,  # 24 hours cache for preflight requests
 )
 
-# Analytics middleware for request tracking
+# Enhanced analytics middleware for comprehensive request tracking
 @app.middleware("http")
 async def analytics_middleware(request: Request, call_next):
-    """Middleware to track API requests and performance metrics"""
+    """Enhanced middleware to track API requests, performance metrics, and user analytics"""
     start_time = time.time()
     
     # Generate unique request ID
@@ -65,8 +123,22 @@ async def analytics_middleware(request: Request, call_next):
     # Add request ID to request state for access in endpoints
     request.state.request_id = request_id
     
-    # Log request details
-    logger.info(f"Request {request_id}: {request.method} {request.url.path}")
+    # Extract client information
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    referer = request.headers.get("referer", "")
+    session_id = request.headers.get("x-session-id", "")
+    
+    # Extract route information
+    path = request.url.path
+    method = request.method
+    query_params = dict(request.query_params)
+    
+    # Log comprehensive request details
+    logger.info(
+        f"Request {request_id}: {method} {path} from {client_ip} "
+        f"(Session: {session_id[:8] if session_id else 'none'})"
+    )
     
     try:
         # Process the request
@@ -75,18 +147,53 @@ async def analytics_middleware(request: Request, call_next):
         # Calculate processing time
         process_time = time.time() - start_time
         
-        # Add analytics headers
+        # Add comprehensive analytics headers
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Process-Time"] = f"{process_time:.4f}"
+        response.headers["X-Timestamp"] = str(int(start_time))
+        response.headers["X-Server-Instance"] = os.getenv("HOSTNAME", "unknown")
         
-        # Log successful request
+        # Track request analytics
+        await track_request_analytics({
+            "request_id": request_id,
+            "method": method,
+            "path": path,
+            "status_code": response.status_code,
+            "process_time": process_time,
+            "client_ip": client_ip,
+            "user_agent": user_agent,
+            "referer": referer,
+            "session_id": session_id,
+            "query_params": query_params,
+            "timestamp": datetime.now().isoformat(),
+            "success": True
+        })
+        
+        # Log successful request with enhanced details
         logger.info(
-            f"Request {request_id} completed: {response.status_code} in {process_time:.4f}s"
+            f"Request {request_id} completed: {response.status_code} in {process_time:.4f}s "
+            f"(Size: {response.headers.get('content-length', 'unknown')} bytes)"
         )
         
-        # Track slow requests (> 1 second)
+        # Track performance issues
         if process_time > 1.0:
             logger.warning(f"Slow request detected: {request_id} took {process_time:.4f}s")
+            await track_performance_issue("slow_request", {
+                "request_id": request_id,
+                "path": path,
+                "process_time": process_time,
+                "method": method
+            })
+        
+        # Track high memory usage if available
+        if hasattr(request.state, 'memory_usage'):
+            memory_mb = getattr(request.state, 'memory_usage', 0)
+            if memory_mb > 100:  # 100MB threshold
+                await track_performance_issue("high_memory", {
+                    "request_id": request_id,
+                    "path": path,
+                    "memory_usage": memory_mb
+                })
         
         return response
         
@@ -94,13 +201,111 @@ async def analytics_middleware(request: Request, call_next):
         # Calculate processing time even for failed requests
         process_time = time.time() - start_time
         
-        # Log failed request
+        # Track failed request analytics
+        await track_request_analytics({
+            "request_id": request_id,
+            "method": method,
+            "path": path,
+            "status_code": 500,
+            "process_time": process_time,
+            "client_ip": client_ip,
+            "user_agent": user_agent,
+            "referer": referer,
+            "session_id": session_id,
+            "query_params": query_params,
+            "timestamp": datetime.now().isoformat(),
+            "success": False,
+            "error_message": str(e)
+        })
+        
+        # Log failed request with enhanced details
         logger.error(
-            f"Request {request_id} failed after {process_time:.4f}s: {str(e)}"
+            f"Request {request_id} failed after {process_time:.4f}s: {str(e)} "
+            f"(Path: {path}, IP: {client_ip})"
         )
         
         # Re-raise the exception
         raise
+
+
+# Analytics tracking functions
+async def track_request_analytics(data: dict):
+    """Track request analytics data (async to avoid blocking)"""
+    try:
+        # In a production environment, this would send to a proper analytics service
+        # For now, we'll just log structured data that can be collected by log aggregators
+        logger.info(f"ANALYTICS_REQUEST: {data}")
+        
+        # Optional: Send to external analytics service
+        # await send_to_analytics_service(data)
+        
+    except Exception as e:
+        # Analytics should never break the main request flow
+        logger.warning(f"Failed to track request analytics: {e}")
+
+
+async def track_performance_issue(issue_type: str, data: dict):
+    """Track performance issues for monitoring"""
+    try:
+        performance_data = {
+            "type": "performance_issue",
+            "issue_type": issue_type,
+            "timestamp": datetime.now().isoformat(),
+            **data
+        }
+        
+        logger.warning(f"ANALYTICS_PERFORMANCE: {performance_data}")
+        
+        # Optional: Send to monitoring service like Sentry, DataDog, etc.
+        # await send_to_monitoring_service(performance_data)
+        
+    except Exception as e:
+        logger.warning(f"Failed to track performance issue: {e}")
+
+
+async def track_user_engagement(data: dict):
+    """Track user engagement metrics"""
+    try:
+        engagement_data = {
+            "type": "user_engagement",
+            "timestamp": datetime.now().isoformat(),
+            **data
+        }
+        
+        logger.info(f"ANALYTICS_ENGAGEMENT: {engagement_data}")
+        
+    except Exception as e:
+        logger.warning(f"Failed to track user engagement: {e}")
+
+
+# Rate limiting for analytics endpoints
+analytics_rate_limit = {}
+ANALYTICS_RATE_LIMIT_REQUESTS = 1000  # requests per minute
+ANALYTICS_RATE_LIMIT_WINDOW = 60  # seconds
+
+def check_analytics_rate_limit(client_ip: str) -> bool:
+    """Check if client has exceeded analytics rate limit"""
+    now = time.time()
+    window_start = now - ANALYTICS_RATE_LIMIT_WINDOW
+    
+    # Clean old entries
+    analytics_rate_limit[client_ip] = [
+        timestamp for timestamp in analytics_rate_limit.get(client_ip, [])
+        if timestamp > window_start
+    ]
+    
+    # Check current rate
+    current_requests = len(analytics_rate_limit.get(client_ip, []))
+    
+    if current_requests >= ANALYTICS_RATE_LIMIT_REQUESTS:
+        return False
+    
+    # Add current request
+    if client_ip not in analytics_rate_limit:
+        analytics_rate_limit[client_ip] = []
+    analytics_rate_limit[client_ip].append(now)
+    
+    return True
 
 class TextRequest(BaseModel):
     text: str
@@ -639,6 +844,150 @@ async def simple_qa():
     
     # Return directly as a dictionary, without JSONResponse
     return response_data
+
+# Analytics endpoints
+@app.post("/analytics/track")
+async def track_analytics_event(request: Request, event_data: dict):
+    """
+    Generic analytics tracking endpoint for frontend events
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check rate limit
+    if not check_analytics_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429, 
+            detail="Analytics rate limit exceeded"
+        )
+    
+    try:
+        # Extract session info
+        session_id = request.headers.get("x-session-id", "")
+        user_id = request.headers.get("x-user-id", "")
+        
+        # Enhanced event data
+        enhanced_event = {
+            **event_data,
+            "client_ip": client_ip,
+            "session_id": session_id,
+            "user_id": user_id,
+            "timestamp": datetime.now().isoformat(),
+            "server_request_id": getattr(request.state, 'request_id', '')
+        }
+        
+        # Track the event
+        await track_user_engagement(enhanced_event)
+        
+        return {
+            "success": True,
+            "message": "Event tracked successfully",
+            "event_id": str(uuid.uuid4())
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to track analytics event: {e}")
+        raise HTTPException(status_code=500, detail="Failed to track event")
+
+@app.post("/analytics/performance")
+async def track_performance_metrics(request: Request, metrics_data: dict):
+    """
+    Endpoint for tracking performance metrics from frontend
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check rate limit
+    if not check_analytics_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429, 
+            detail="Analytics rate limit exceeded"
+        )
+    
+    try:
+        # Extract performance metrics
+        performance_metrics = {
+            **metrics_data,
+            "client_ip": client_ip,
+            "timestamp": datetime.now().isoformat(),
+            "server_request_id": getattr(request.state, 'request_id', '')
+        }
+        
+        # Check for performance issues
+        if metrics_data.get('lcp', 0) > 4000:  # Poor LCP
+            await track_performance_issue("poor_lcp", performance_metrics)
+        
+        if metrics_data.get('cls', 0) > 0.25:  # Poor CLS
+            await track_performance_issue("poor_cls", performance_metrics)
+            
+        if metrics_data.get('fid', 0) > 300:  # Poor FID
+            await track_performance_issue("poor_fid", performance_metrics)
+        
+        # Track the metrics
+        logger.info(f"ANALYTICS_PERFORMANCE_FRONTEND: {performance_metrics}")
+        
+        return {
+            "success": True,
+            "message": "Performance metrics tracked",
+            "performance_score": calculate_performance_score(metrics_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to track performance metrics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to track performance metrics")
+
+@app.get("/analytics/status")
+async def analytics_status():
+    """
+    Get analytics system status
+    """
+    return {
+        "status": "operational",
+        "version": "1.0.0",
+        "endpoints": {
+            "track": "/analytics/track",
+            "performance": "/analytics/performance", 
+            "status": "/analytics/status"
+        },
+        "rate_limits": {
+            "requests_per_minute": ANALYTICS_RATE_LIMIT_REQUESTS,
+            "window_seconds": ANALYTICS_RATE_LIMIT_WINDOW
+        },
+        "cors_origins": len(ANALYTICS_CORS_ORIGINS),
+        "timestamp": datetime.now().isoformat()
+    }
+
+def calculate_performance_score(metrics: dict) -> int:
+    """Calculate a performance score from 0-100 based on Web Vitals"""
+    score = 100
+    
+    # LCP scoring (max 25 points deduction)
+    lcp = metrics.get('lcp', 0)
+    if lcp > 4000:
+        score -= 25
+    elif lcp > 2500:
+        score -= 15
+    
+    # CLS scoring (max 25 points deduction)  
+    cls = metrics.get('cls', 0)
+    if cls > 0.25:
+        score -= 25
+    elif cls > 0.1:
+        score -= 15
+    
+    # FID scoring (max 25 points deduction)
+    fid = metrics.get('fid', 0)
+    if fid > 300:
+        score -= 25
+    elif fid > 100:
+        score -= 15
+    
+    # FCP scoring (max 25 points deduction)
+    fcp = metrics.get('fcp', 0)
+    if fcp > 3000:
+        score -= 25
+    elif fcp > 1800:
+        score -= 15
+    
+    return max(0, score)
 
 def start():
     """Function to start the server programmatically"""
