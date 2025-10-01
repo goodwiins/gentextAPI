@@ -94,6 +94,8 @@ export const appwriteAuth = {
     // Login with retry logic
     login: async (email: string, password: string, retryCount = 0): Promise<Models.Session> => {
         try {
+            console.log('Attempting login with:', { email, endpoint: APPWRITE_ENDPOINT, projectId: APPWRITE_PROJECT_ID });
+            
             // Check for existing session and delete it first
             try {
                 const sessions = await account.listSessions();
@@ -107,9 +109,19 @@ export const appwriteAuth = {
             }
             
             // Use createEmailPasswordSession instead of createSession
+            console.log('Creating email password session...');
             const response = await account.createEmailPasswordSession(email, password);
+            console.log('Login successful:', response);
             return response;
         } catch (error: any) {
+            console.error('Login error details:', {
+                message: error.message,
+                type: error.type,
+                code: error.code,
+                response: error.response,
+                stack: error.stack
+            });
+            
             const shouldRetry = await handleRateLimit(error, retryCount);
             if (shouldRetry === null) {
                 return appwriteAuth.login(email, password, retryCount + 1);

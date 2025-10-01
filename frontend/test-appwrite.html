@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Appwrite Test</title>
+</head>
+<body>
+    <h1>Appwrite Connection Test</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <div id="result"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.1"></script>
+    <script>
+        const client = new Appwrite.Client()
+            .setEndpoint('https://fra.cloud.appwrite.io/v1')
+            .setProject('67f3fd1900127d6ca5eb');
+
+        const account = new Appwrite.Account(client);
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing connection...';
+            
+            try {
+                // Test basic connectivity
+                const response = await fetch('https://fra.cloud.appwrite.io/v1', {
+                    method: 'GET',
+                    headers: {
+                        'X-Appwrite-Project': '67f3fd1900127d6ca5eb'
+                    }
+                });
+                
+                resultDiv.innerHTML = `
+                    <h3>Connection Test Results:</h3>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>Headers:</strong></p>
+                    <pre>${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}</pre>
+                `;
+                
+                // Test account creation (this will fail with CORS but show us the error)
+                try {
+                    await account.createEmailPasswordSession('test@example.com', 'testpassword123');
+                } catch (error) {
+                    resultDiv.innerHTML += `
+                        <h3>Login Test Error:</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Type:</strong> ${error.type}</p>
+                        <p><strong>Code:</strong> ${error.code}</p>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>Connection Failed:</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Stack:</strong></p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
