@@ -133,6 +133,14 @@ export default function Setting() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Check if user is authenticated
+    if (!authState.user) {
+      toast.error('You must be logged in to update your profile')
+      router.push('/login')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -156,6 +164,16 @@ export default function Setting() {
       }, 1000)
     } catch (error: any) {
       console.error('Error updating profile:', error)
+
+      // Handle session expiration
+      if (error?.message?.includes('missing scope') || error?.message?.includes('guests')) {
+        toast.error('Your session has expired. Please log in again.')
+        setTimeout(() => {
+          router.push('/login')
+        }, 1500)
+        return
+      }
+
       const errorMessage = error?.message || 'Failed to update profile'
       toast.error(errorMessage)
     } finally {
