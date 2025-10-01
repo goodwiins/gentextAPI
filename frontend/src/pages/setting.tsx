@@ -134,9 +134,10 @@ export default function Setting() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    
+
     try {
-      const updatedPrefs = await account.updatePrefs({
+      // Update user preferences in Appwrite
+      await account.updatePrefs({
         FirstName: formData.firstName,
         LastName: formData.lastName,
         avatar: formData.avatar,
@@ -147,12 +148,16 @@ export default function Setting() {
         privacy
       })
 
-      // Refresh the page to update the user data
-      router.reload()
       toast.success('Profile updated successfully')
-    } catch (error) {
+
+      // Refresh the page to update the user data
+      setTimeout(() => {
+        router.reload()
+      }, 1000)
+    } catch (error: any) {
       console.error('Error updating profile:', error)
-      toast.error('Failed to update profile')
+      const errorMessage = error?.message || 'Failed to update profile'
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -409,11 +414,25 @@ export default function Setting() {
                           />
                         </div>
                       </div>
+                      <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <Button
+                          onClick={handleUpdateProfile}
+                          disabled={isLoading}
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          {isLoading ? (
+                            <Icons.Loader className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
               )}
-              
+
               {/* Appearance Settings */}
               {activeSection === 'appearance' && (
                 <motion.div
@@ -508,11 +527,25 @@ export default function Setting() {
                           />
                         </div>
                       </div>
+                      <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <Button
+                          onClick={handleUpdateProfile}
+                          disabled={isLoading}
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          {isLoading ? (
+                            <Icons.Loader className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
               )}
-              
+
               {/* Language & Region Settings */}
               {activeSection === 'language' && (
                 <motion.div
@@ -581,11 +614,25 @@ export default function Setting() {
                           </Select>
                         </div>
                       </div>
+                      <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <Button
+                          onClick={handleUpdateProfile}
+                          disabled={isLoading}
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          {isLoading ? (
+                            <Icons.Loader className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
               )}
-              
+
               {/* Privacy Settings */}
               {activeSection === 'privacy' && (
                 <motion.div
@@ -653,11 +700,25 @@ export default function Setting() {
                           </Button>
                         </div>
                       </div>
+                      <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <Button
+                          onClick={handleUpdateProfile}
+                          disabled={isLoading}
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          {isLoading ? (
+                            <Icons.Loader className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
               )}
-              
+
               {/* Security Settings */}
               {activeSection === 'security' && (
                 <motion.div
