@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/context/auth-context';
 import { analyticsService } from '@/lib/analytics-service';
 import type {
   UseAnalyticsReturn,
@@ -21,7 +21,8 @@ import type {
 } from '../../../specs/001-homepage-saas/contracts/frontend-components';
 
 export function useHomepageAnalytics(): UseHomepageAnalyticsReturn {
-  const { user } = useAuth();
+  const { authState } = useAuthContext();
+  const user = authState.user;
   const sessionStartTime = useRef<number>(Date.now());
   const isInitialized = useRef<boolean>(false);
 

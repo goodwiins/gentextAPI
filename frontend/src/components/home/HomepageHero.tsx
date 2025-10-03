@@ -128,7 +128,7 @@ export function HomepageHero({
             {user ? (
               <>
                 <Button
-                  size="xl"
+                  size="lg"
                   onClick={() => handleCtaClick(ConversionType.GENERATE_CLICKED)}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                   aria-label="Generate quiz"
@@ -140,7 +140,7 @@ export function HomepageHero({
                 </Button>
                 <Button
                   variant="outline"
-                  size="xl"
+                  size="lg"
                   onClick={() => handleCtaClick(ConversionType.LEARN_MORE_CLICKED)}
                   className="border-2 border-gray-300 text-gray-700 hover:border-gray-400 font-semibold"
                   aria-label="Learn more about features"
@@ -152,7 +152,7 @@ export function HomepageHero({
             ) : (
               <>
                 <Button
-                  size="xl"
+                  size="lg"
                   onClick={() => handleCtaClick(ConversionType.SIGNUP_CLICKED)}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                   aria-label="Get started"
@@ -163,7 +163,7 @@ export function HomepageHero({
                 </Button>
                 <Button
                   variant="outline"
-                  size="xl"
+                  size="lg"
                   onClick={() => handleCtaClick(ConversionType.LOGIN_CLICKED)}
                   className="border-2 border-gray-300 text-gray-700 hover:border-gray-400 font-semibold"
                   aria-label="Sign in"

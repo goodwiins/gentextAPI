@@ -3,6 +3,7 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 import { toast } from "react-hot-toast"
 import { motion } from "framer-motion"
+import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -65,6 +66,7 @@ type SettingsSection = 'profile' | 'notifications' | 'appearance' | 'language' |
 export default function Setting() {
   const router = useRouter()
   const { authState, logout } = useAuthContext()
+  const { theme, setTheme } = useTheme()
   const [isLoading, setIsLoading] = useState(false)
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
   const [formData, setFormData] = useState<FormData>({
@@ -83,7 +85,7 @@ export default function Setting() {
   })
   
   const [appearance, setAppearance] = useState({
-    theme: 'system',
+    theme: theme || 'system',
     fontSize: 16,
     reduceAnimations: false,
     highContrast: false
@@ -101,6 +103,13 @@ export default function Setting() {
       router.push("/login")
     }
   }, [authState, router])
+
+  useEffect(() => {
+    // Update local appearance state when global theme changes
+    if (theme) {
+      setAppearance(prev => ({ ...prev, theme }))
+    }
+  }, [theme])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -122,6 +131,11 @@ export default function Setting() {
       ...prev,
       [key]: value
     }))
+    
+    // If changing theme, also update global theme
+    if (key === 'theme') {
+      setTheme(value)
+    }
   }
   
   const handlePrivacyChange = (key: string, value: boolean) => {
@@ -135,8 +149,8 @@ export default function Setting() {
     e.preventDefault()
 
     // Check if user is authenticated
-    if (!authState.user) {
-      toast.error('You must be logged in to update your profile')
+    if (!authState.user || !authState.session) {
+      toast.error('Your session has expired. Please log in again.')
       router.push('/login')
       return
     }
@@ -144,6 +158,21 @@ export default function Setting() {
     setIsLoading(true)
 
     try {
+      // Verify session is still valid before updating
+      try {
+        const session = await account.getSession('current');
+        if (!session) {
+          throw new Error('Your session has expired. Please log in again.');
+        }
+      } catch (sessionError: any) {
+        if (sessionError?.message?.includes('missing scopes') ||
+            sessionError?.message?.includes('guests') ||
+            sessionError?.type === 'user_unauthorized') {
+          throw new Error('Your session has expired. Please log in again.');
+        }
+        throw sessionError;
+      }
+
       // Update user preferences in Appwrite
       await account.updatePrefs({
         FirstName: formData.firstName,
@@ -166,7 +195,10 @@ export default function Setting() {
       console.error('Error updating profile:', error)
 
       // Handle session expiration
-      if (error?.message?.includes('missing scope') || error?.message?.includes('guests')) {
+      if (error?.message?.includes('session has expired') ||
+          error?.message?.includes('missing scopes') ||
+          error?.message?.includes('guests') ||
+          error?.type === 'user_unauthorized') {
         toast.error('Your session has expired. Please log in again.')
         setTimeout(() => {
           router.push('/login')

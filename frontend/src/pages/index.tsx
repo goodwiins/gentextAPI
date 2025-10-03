@@ -2,8 +2,10 @@
 import React from 'react';
 import Head from 'next/head';
 import { useRouter } from "next/router";
+import { useEffect } from 'react';
 import { HomepageLayout } from "@/components/home/HomepageLayout";
 import { useAuthContext } from "@/context/auth-context";
+import { toast } from 'react-hot-toast';
 import type { AuthUser, ConversionAction } from '@/types/analytics';
 
 interface UserStats {
@@ -14,7 +16,34 @@ interface UserStats {
 const Home: React.FC = () => {
   const [userStats, setUserStats] = React.useState<UserStats>({ quizzes: 0, questions: 0 });
   const router = useRouter();
-  const { authState } = useAuthContext();
+  const { authState, refreshAuth } = useAuthContext();
+
+  // Handle OAuth callback on main page
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const authSuccess = urlParams.get('auth_success');
+    const authError = urlParams.get('auth_error');
+
+    // Only refresh auth if we're actually in an OAuth callback
+    if (authSuccess === 'true') {
+      // User returned successfully from OAuth flow
+      toast.loading('Completing authentication...');
+      refreshAuth().then(() => {
+        toast.dismiss();
+        toast.success('Successfully logged in with Google!');
+        // Clean up the URL
+        router.replace('/', undefined, { shallow: true });
+      }).catch((error) => {
+        toast.dismiss();
+        toast.error('Failed to complete authentication. Please try again.');
+        router.replace('/login');
+      });
+    } else if (authError === 'true') {
+      toast.error('Authentication failed. Please try again.');
+      router.replace('/login');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount, checking URL params
 
   // Memoize the fetchUserStats function
   const fetchUserStats = React.useCallback(async () => {

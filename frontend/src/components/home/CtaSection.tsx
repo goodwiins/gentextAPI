@@ -150,7 +150,7 @@ export function CtaSection({
               className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12"
             >
               <Button
-                size="xl"
+                size="lg"
                 onClick={() => handleCtaClick(ctaContent.primaryAction)}
                 className={`
                   ${isDarkBackground 
@@ -169,7 +169,7 @@ export function CtaSection({
               {variant !== 'minimal' && (
                 <Button
                   variant="outline"
-                  size="xl"
+                  size="lg"
                   onClick={() => handleCtaClick(ctaContent.secondaryAction)}
                   className={`
                     ${isDarkBackground 

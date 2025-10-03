@@ -1,5 +1,5 @@
 import { Models, Query, ID } from 'appwrite';
-import { client, databases } from './appwrite-config';
+import { client, databases } from './appwrite';
 
 // Environment variables with fallbacks
 const APPWRITE_DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '';
