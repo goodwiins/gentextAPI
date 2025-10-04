@@ -19,6 +19,16 @@ type AuthContextType = {
   isUserAuthenticated: () => boolean;
   clearAuthError: () => void;
   refreshAuth: () => Promise<void>;
+  // MFA methods
+  loginWithMFA: (email: string, password: string, otp?: string, challengeId?: string, rememberDevice?: boolean) => Promise<{ session?: any; requiresMFA?: boolean; challengeId?: string }>;
+  setupPhoneMFA: (phone: string, password: string) => Promise<void>;
+  verifyPhone: (userId: string, otp: string) => Promise<void>;
+  getMfaStatus: () => Promise<any>;
+  enablePhoneMFA: () => Promise<void>;
+  // Device management
+  listSessions: () => Promise<any>;
+  deleteSession: (sessionId: string) => Promise<void>;
+  extendSession: (sessionId?: string) => Promise<void>;
 };
 
 type AuthProviderProps = {
@@ -226,13 +236,126 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, []);
 
+  // MFA Methods
+  const loginWithMFA = useCallback(async (
+    email: string,
+    password: string,
+    otp?: string,
+    challengeId?: string,
+    rememberDevice?: boolean
+  ): Promise<{ session?: any; requiresMFA?: boolean; challengeId?: string }> => {
+    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const result = await appwriteAuth.loginWithMFA(email, password, otp, challengeId, rememberDevice);
+
+      if (result.requiresMFA) {
+        // MFA required, don't set user yet
+        setAuthState(prev => ({ ...prev, isLoading: false, error: null }));
+        return result;
+      }
+
+      // MFA complete or not required, get user details
+      const user = await appwriteAuth.getCurrentUser();
+      setAuthState({ user, session: result.session || null, isLoading: false, error: null });
+
+      return result;
+    } catch (error: any) {
+      const errorMessage = error.message || 'Login failed';
+      setAuthState(prev => ({
+        ...prev,
+        user: null,
+        session: null,
+        isLoading: false,
+        error: errorMessage
+      }));
+      throw error;
+    }
+  }, []);
+
+  const setupPhoneMFA = useCallback(async (phone: string, password: string): Promise<void> => {
+    try {
+      await appwriteAuth.updatePhone(phone, password);
+      await appwriteAuth.createPhoneToken(phone);
+    } catch (error: any) {
+      console.error("Setup phone MFA error:", error);
+      throw error;
+    }
+  }, []);
+
+  const verifyPhone = useCallback(async (userId: string, otp: string): Promise<void> => {
+    try {
+      await appwriteAuth.updatePhoneVerification(userId, otp);
+    } catch (error: any) {
+      console.error("Verify phone error:", error);
+      throw error;
+    }
+  }, []);
+
+  const getMfaStatus = useCallback(async (): Promise<any> => {
+    try {
+      return await appwriteAuth.listMfaFactors();
+    } catch (error: any) {
+      console.error("Get MFA status error:", error);
+      throw error;
+    }
+  }, []);
+
+  const enablePhoneMFA = useCallback(async (): Promise<void> => {
+    try {
+      await appwriteAuth.createMfaAuthenticator('phone');
+    } catch (error: any) {
+      console.error("Enable phone MFA error:", error);
+      throw error;
+    }
+  }, []);
+
+  const listSessions = useCallback(async (): Promise<any> => {
+    try {
+      return await appwriteAuth.listSessions();
+    } catch (error: any) {
+      console.error("List sessions error:", error);
+      throw error;
+    }
+  }, []);
+
+  const deleteSession = useCallback(async (sessionId: string): Promise<void> => {
+    try {
+      await appwriteAuth.deleteSession(sessionId);
+      // Refresh auth state if we deleted the current session
+      if (sessionId === 'current') {
+        await refreshAuth();
+      }
+    } catch (error: any) {
+      console.error("Delete session error:", error);
+      throw error;
+    }
+  }, [refreshAuth]);
+
+  const extendSession = useCallback(async (sessionId?: string): Promise<void> => {
+    try {
+      await appwriteAuth.extendSession(sessionId);
+    } catch (error: any) {
+      console.error("Extend session error:", error);
+      throw error;
+    }
+  }, []);
+
   const contextValue = {
     authState,
     login,
     logout,
     isUserAuthenticated,
     clearAuthError,
-    refreshAuth
+    refreshAuth,
+    loginWithMFA,
+    setupPhoneMFA,
+    verifyPhone,
+    getMfaStatus,
+    enablePhoneMFA,
+    listSessions,
+    deleteSession,
+    extendSession
   };
 
   return (
