@@ -25,6 +25,7 @@ from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
 from .google_provider import GoogleProvider
 from .cohere_provider import CohereProvider
+from .azure_foundry_provider import AzureAIFoundryProvider
 from .model_router import ModelRouter, RoutingStrategy, RoutingDecision, get_model_router, initialize_model_router
 from .performance_monitor import PerformanceMonitor, get_performance_monitor, initialize_performance_monitoring
 from .failover_manager import FailoverManager, get_failover_manager, initialize_failover_system

@@ -33,7 +33,8 @@ from . import (
     OpenAIProvider,
     AnthropicProvider,
     GoogleProvider,
-    CohereProvider
+    CohereProvider,
+    AzureAIFoundryProvider
 )
 
 # Configure logging
@@ -126,7 +127,19 @@ class EnhancedAISystem:
             )
             cohere_provider = CohereProvider(cohere_config)
             self.registry.register_provider(cohere_provider)
-        
+
+        # Azure AI Foundry Provider
+        if False:  # Set to True if you have Azure AI Foundry API key
+            azure_config = ProviderConfig(
+                api_key="your-azure-api-key",
+                base_url="https://your-resource-name.openai.azure.com",
+                model="gpt-4-turbo",  # Your Azure deployment name
+                max_tokens=2000,
+                temperature=0.7
+            )
+            azure_provider = AzureAIFoundryProvider(azure_config)
+            self.registry.register_provider(azure_provider)
+
         logger.info(f"Setup {len(self.registry.get_all_providers())} providers")
     
     async def generate_questions(
