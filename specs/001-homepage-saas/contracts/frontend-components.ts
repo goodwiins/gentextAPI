@@ -251,9 +251,9 @@ export interface TestableComponentProps {
 }
 
 export interface MockAnalyticsProvider {
-  trackPageView: jest.MockedFunction<(metrics: PerformanceMetrics) => Promise<void>>;
-  trackConversion: jest.MockedFunction<(event: any) => Promise<void>>;
-  trackEngagement: jest.MockedFunction<(engagement: any) => Promise<void>>;
+  trackPageView: (metrics: PerformanceMetrics) => Promise<void>;
+  trackConversion: (event: any) => Promise<void>;
+  trackEngagement: (engagement: any) => Promise<void>;
 }
 
 // ================================
