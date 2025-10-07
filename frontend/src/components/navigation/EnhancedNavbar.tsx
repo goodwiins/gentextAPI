@@ -100,9 +100,9 @@ const FloatingNav: React.FC<FloatingNavProps> = ({ navItems, className }) => {
           className={cn(
             "fixed top-4 left-1/2 transform -translate-x-1/2",
             "z-[100] max-w-fit",
-            "border border-gray-200/20 dark:border-gray-800/20 rounded-2xl",
-            "bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl",
-            "shadow-lg shadow-gray-500/10 dark:shadow-black/20",
+            "border border-border/20 rounded-2xl",
+            "bg-background/90 backdrop-blur-xl",
+            "shadow-lg shadow-black/5",
             "px-6 py-3",
             className
           )}
@@ -111,13 +111,13 @@ const FloatingNav: React.FC<FloatingNavProps> = ({ navItems, className }) => {
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2 group">
               <motion.div
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 0.5 }}
-                className="p-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
+                whileHover={{ scale: 1.1 }}
+                transition={{ duration: 0.2 }}
+                className="p-1.5 rounded-lg bg-primary/10 text-primary"
               >
                 <Sparkles className="h-4 w-4" />
               </motion.div>
-              <span className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+              <span className="text-sm font-semibold text-foreground group-hover:text-muted-foreground transition-colors">
                 genText
               </span>
             </Link>
@@ -130,10 +130,9 @@ const FloatingNav: React.FC<FloatingNavProps> = ({ navItems, className }) => {
                   href={navItem.href}
                   className={cn(
                     "relative px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200",
-                    "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white",
                     isCurrentRoute(navItem.href) 
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" 
-                      : "hover:bg-gray-100 dark:hover:bg-gray-800/50",
+                      ? "bg-accent text-accent-foreground" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
                     "group"
                   )}
                 >
@@ -141,8 +140,8 @@ const FloatingNav: React.FC<FloatingNavProps> = ({ navItems, className }) => {
                     <span className={cn(
                       "transition-colors",
                       isCurrentRoute(navItem.href)
-                        ? "text-blue-500 dark:text-blue-400"
-                        : "text-gray-500 group-hover:text-blue-500 dark:text-gray-400 dark:group-hover:text-blue-400"
+                        ? "text-primary"
+                        : "text-muted-foreground group-hover:text-primary"
                     )}>
                       {navItem.icon}
                     </span>
@@ -202,10 +201,12 @@ const UserProfileDropdown: React.FC = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-full overflow-hidden ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-950 ring-gray-200 dark:ring-gray-800 transition-all duration-200 hover:ring-blue-500 dark:hover:ring-blue-400"
+            className="h-8 w-8 rounded-full"
+            aria-label={`User menu for ${authState.user?.name || 'user'}`}
+            aria-haspopup="true"
           >
             <Image
-              alt="User Avatar"
+              alt={`${authState.user?.name || 'User'} profile picture`}
               className="h-full w-full object-cover"
               src={authState.user?.prefs?.avatar || DEFAULT_AVATAR}
               width={32}
@@ -218,7 +219,7 @@ const UserProfileDropdown: React.FC = () => {
         <DropdownMenuLabel className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded-full overflow-hidden">
             <Image
-              alt="User Avatar"
+              alt={`${authState.user?.name || 'User'} profile picture`}
               className="h-full w-full object-cover"
               src={authState.user?.prefs?.avatar || DEFAULT_AVATAR}
               width={32}
@@ -227,7 +228,7 @@ const UserProfileDropdown: React.FC = () => {
           </div>
           <div className="flex flex-col">
             <span className="font-medium">{authState.user?.name || 'User'}</span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{authState.user?.email}</span>
+            <span className="text-xs text-muted-foreground">{authState.user?.email}</span>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -240,7 +241,7 @@ const UserProfileDropdown: React.FC = () => {
         <DropdownMenuItem 
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300 focus:bg-red-50 dark:focus:bg-red-900/20"
+          className="text-destructive focus:text-destructive"
         >
           {isLoggingOut ? <Loader className="h-4 w-4 mr-2 animate-spin" /> : <LogOut className="h-4 w-4 mr-2" />}
           {isLoggingOut ? 'Signing out...' : 'Sign out'}
@@ -264,9 +265,9 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navItems }) => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center space-x-2 mb-8 p-4 border-b border-gray-200 dark:border-gray-700">
-        <Sparkles className="h-6 w-6 text-blue-500" />
-        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+      <div className="flex items-center space-x-2 mb-8 p-4 border-b border-border">
+        <Sparkles className="h-6 w-6 text-primary" />
+        <span className="text-xl font-semibold text-foreground">
           genText AI
         </span>
       </div>
@@ -279,8 +280,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navItems }) => {
             className={cn(
               "flex items-center px-4 py-3 rounded-lg text-lg font-medium transition-all duration-200",
               isCurrentRoute(item.href)
-                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 shadow-sm'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                ? 'bg-accent text-accent-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             )}
           >
             {item.icon}
@@ -291,7 +292,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navItems }) => {
 
       {/* Mobile auth section */}
       {!authState.user && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+        <div className="p-4 border-t border-border space-y-3">
           <Link href="/login" className="block">
             <Button variant="outline" className="w-full">
               Login
@@ -368,37 +369,49 @@ const StaticNavbar: React.FC = () => {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+    <nav 
+      className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border"
+      role="navigation"
+      aria-label="Main navigation"
+    >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2 group">
+        <Link 
+          href="/" 
+          className="flex items-center space-x-2 group focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
+          aria-label="genText AI - Go to homepage"
+        >
           <motion.div
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.5 }}
-            className="p-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
+            whileHover={{ scale: 1.1 }}
+            transition={{ duration: 0.2 }}
+            className="p-1.5 rounded-lg bg-primary/10 text-primary"
+            aria-hidden="true"
           >
             <Sparkles className="h-5 w-5" />
           </motion.div>
-          <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+          <span className="text-lg font-semibold text-foreground group-hover:text-muted-foreground transition-colors">
             genText AI
           </span>
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-1">
+        <div className="hidden md:flex items-center space-x-1" role="menubar">
           {navigationItems.map((item, idx) => (
             <Link
               key={`nav-${idx}`}
               href={item.href}
               className={cn(
-                "relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white",
-                "hover:bg-gray-100 dark:hover:bg-gray-800",
-                isCurrentRoute(item.href) && "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                "relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                isCurrentRoute(item.href) 
+                  ? "bg-accent text-accent-foreground" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
               )}
+              role="menuitem"
+              aria-current={isCurrentRoute(item.href) ? "page" : undefined}
+              aria-label={item.description || item.label}
             >
               <div className="flex items-center space-x-2">
-                {item.icon}
+                <span aria-hidden="true">{item.icon}</span>
                 <span>{item.label}</span>
               </div>
             </Link>
@@ -429,11 +442,22 @@ const StaticNavbar: React.FC = () => {
           {/* Mobile Menu */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button className="md:hidden" size="icon" variant="ghost">
+              <Button 
+                className="md:hidden" 
+                size="icon" 
+                variant="ghost"
+                aria-label="Open mobile navigation menu"
+                aria-haspopup="true"
+              >
                 <Menu className="h-5 w-5" />
+                <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72">
+            <SheetContent 
+              side="right" 
+              className="w-72"
+              aria-label="Mobile navigation menu"
+            >
               <MobileMenu navItems={navigationItems} />
             </SheetContent>
           </Sheet>

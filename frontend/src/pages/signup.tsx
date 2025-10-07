@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Loader2, Eye, EyeOff, Shield, Lock, ArrowRight } from "lucide-react";
+import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -372,90 +372,22 @@ export default function Signup() {
           </CardContent>
         </Card>
 
-        {/* Enhanced Sign In Link */}
-        <div className="mt-6 relative group">
-          {/* Subtle background glow on hover */}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 motion-reduce:transition-none blur-xl" />
+        {/* Sign In Link */}
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-foreground hover:text-foreground/80 underline underline-offset-4 decoration-muted-foreground/30 hover:decoration-foreground/50 transition-colors duration-150"
+          >
+            Sign in
+          </Link>
+        </p>
 
-          <div className="relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4 transition-all duration-300 group-hover:border-border/80 group-hover:shadow-lg group-hover:scale-[1.02] motion-reduce:group-hover:scale-100 motion-reduce:transition-none">
-            <p className="text-center text-[14px] text-muted-foreground flex items-center justify-center gap-2 flex-wrap">
-              <span>Already have an account?</span>
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-all duration-200 group/link"
-              >
-                <span className="relative">
-                  Sign in
-                  <span className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent scale-x-0 group-hover/link:scale-x-100 transition-transform duration-300 motion-reduce:transition-none" />
-                </span>
-                <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/link:translate-x-0.5 motion-reduce:group-hover/link:translate-x-0 motion-reduce:transition-none" />
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        {/* Enhanced Footer Trust Indicator */}
-        <div className="mt-8 space-y-4">
-          {/* Security Features Grid */}
-          <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
-            {/* Encryption Badge */}
-            <div className="group/badge relative overflow-hidden bg-gradient-to-br from-background via-muted/30 to-background border border-border/40 rounded-lg p-3 transition-all duration-300 hover:border-border/60 hover:shadow-md hover:scale-[1.02] motion-reduce:hover:scale-100 motion-reduce:transition-none">
-              {/* Animated gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-0 group-hover/badge:opacity-100 transition-opacity duration-500 motion-reduce:transition-none" />
-
-              <div className="relative flex items-center gap-2">
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center transition-transform duration-300 group-hover/badge:scale-110 motion-reduce:group-hover/badge:scale-100 motion-reduce:transition-none">
-                  <Lock className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-foreground/90 tracking-tight">
-                    256-bit SSL
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/70">
-                    Encryption
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Security Badge */}
-            <div className="group/badge relative overflow-hidden bg-gradient-to-br from-background via-muted/30 to-background border border-border/40 rounded-lg p-3 transition-all duration-300 hover:border-border/60 hover:shadow-md hover:scale-[1.02] motion-reduce:hover:scale-100 motion-reduce:transition-none">
-              {/* Animated gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-0 group-hover/badge:opacity-100 transition-opacity duration-500 motion-reduce:transition-none" />
-
-              <div className="relative flex items-center gap-2">
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center transition-transform duration-300 group-hover/badge:scale-110 motion-reduce:group-hover/badge:scale-100 motion-reduce:transition-none">
-                  <Shield className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-foreground/90 tracking-tight">
-                    Data Protected
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/70">
-                    GDPR Compliant
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main security message with subtle animation */}
-          <div className="text-center relative">
-            <p className="text-[12px] text-muted-foreground/80 font-normal animate-in fade-in duration-1000 delay-300 motion-reduce:animate-none">
-              Your data is secured with industry-standard encryption
-            </p>
-
-            {/* Decorative security pulse indicator */}
-            <div className="flex items-center justify-center gap-1.5 mt-2 animate-in fade-in duration-1000 delay-500 motion-reduce:animate-none">
-              <div className="relative flex items-center">
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse motion-reduce:animate-none" style={{ animationDuration: '2s' }} />
-                <div className="absolute h-1.5 w-1.5 rounded-full bg-green-500 animate-ping motion-reduce:animate-none opacity-40" style={{ animationDuration: '2s' }} />
-              </div>
-              <span className="text-[11px] text-muted-foreground/60 font-medium">
-                Secure Connection Active
-              </span>
-            </div>
-          </div>
+        {/* Footer Trust Indicator */}
+        <div className="mt-8 text-center">
+          <p className="text-xs text-muted-foreground">
+            Secured by industry-standard encryption
+          </p>
         </div>
       </div>
     </BackgroundLines>

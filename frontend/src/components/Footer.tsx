@@ -22,7 +22,7 @@ const FooterLink = memo<{ href: string; label: string }>(
   ({ href, label }) => (
     <Link
       href={href}
-      className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-block"
+      className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-block focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
     >
       {label}
     </Link>
@@ -46,12 +46,12 @@ const Footer = memo(() => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full border-t border-border bg-background mt-auto">
+    <footer className="w-full border-t border-border bg-background mt-auto" role="contentinfo">
       <div className="container mx-auto px-6 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           {/* Resources */}
           <FooterSection title="Resources">
-            <nav className="flex flex-col space-y-2.5">
+            <nav className="flex flex-col space-y-2.5" aria-label="Resources navigation">
               <FooterLink href="/documentation" label="Documentation" />
               <FooterLink href="/help" label="Help Center" />
               <FooterLink href="/blog" label="Blog" />
@@ -60,7 +60,7 @@ const Footer = memo(() => {
 
           {/* Company */}
           <FooterSection title="Company">
-            <nav className="flex flex-col space-y-2.5">
+            <nav className="flex flex-col space-y-2.5" aria-label="Company navigation">
               <FooterLink href="/about" label="About" />
               <FooterLink href="/careers" label="Careers" />
               <FooterLink href="/contact" label="Contact" />
@@ -69,7 +69,7 @@ const Footer = memo(() => {
 
           {/* Legal */}
           <FooterSection title="Legal">
-            <nav className="flex flex-col space-y-2.5">
+            <nav className="flex flex-col space-y-2.5" aria-label="Legal navigation">
               <FooterLink href="/privacy" label="Privacy" />
               <FooterLink href="/terms" label="Terms" />
               <FooterLink href="/cookies" label="Cookies" />
@@ -78,7 +78,7 @@ const Footer = memo(() => {
 
           {/* Social */}
           <FooterSection title="Social">
-            <div className="flex space-x-2">
+            <div className="flex space-x-2" role="list" aria-label="Social media links">
               <SocialButton
                 href="https://github.com"
                 icon={<Github className="h-4 w-4" />}
@@ -100,7 +100,11 @@ const Footer = memo(() => {
 
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
-            <Link href="/" className="text-sm font-semibold text-foreground hover:text-muted-foreground transition-colors">
+            <Link 
+              href="/" 
+              className="text-sm font-semibold text-foreground hover:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+              aria-label="genText AI - Go to homepage"
+            >
               genText AI
             </Link>
             <span className="text-sm text-muted-foreground">

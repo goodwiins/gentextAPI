@@ -3,10 +3,25 @@ import React from 'react';
 import Head from 'next/head';
 import { useRouter } from "next/router";
 import { useEffect } from 'react';
-import { HomepageLayout } from "@/components/home/HomepageLayout";
 import { useAuthContext } from "@/context/auth-context";
 import { toast } from 'react-hot-toast';
-import type { AuthUser, ConversionAction } from '@/types/analytics';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
+import { BackgroundLines } from "@/components/ui/background-lines";
+import UserStatsDisplay from "@/components/UserStatsDisplay";
+import { useUserStats } from "@/hooks/useUserStats";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { 
+  ArrowRight, 
+  Zap, 
+  Brain, 
+  Target, 
+  Users,
+  BookOpen,
+  Sparkles,
+  CheckCircle
+} from 'lucide-react';
 
 interface UserStats {
   quizzes: number;
@@ -14,9 +29,14 @@ interface UserStats {
 }
 
 const Home: React.FC = () => {
-  const [userStats, setUserStats] = React.useState<UserStats>({ quizzes: 0, questions: 0 });
+  const [userStats] = React.useState<UserStats>({ quizzes: 5, questions: 25 });
   const router = useRouter();
   const { authState, refreshAuth } = useAuthContext();
+
+  // Integrate our new user stats hook
+  const { stats: realUserStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useUserStats({
+    enabled: !!authState.user
+  });
 
   // Handle OAuth callback on main page
   useEffect(() => {
@@ -24,16 +44,13 @@ const Home: React.FC = () => {
     const authSuccess = urlParams.get('auth_success');
     const authError = urlParams.get('auth_error');
 
-    // Only refresh auth if we're actually in an OAuth callback
     if (authSuccess === 'true') {
-      // User returned successfully from OAuth flow
       toast.loading('Completing authentication...');
       refreshAuth().then(() => {
         toast.dismiss();
         toast.success('Successfully logged in with Google!');
-        // Clean up the URL
         router.replace('/', undefined, { shallow: true });
-      }).catch((error) => {
+      }).catch(() => {
         toast.dismiss();
         toast.error('Failed to complete authentication. Please try again.');
         router.replace('/login');
@@ -42,292 +59,297 @@ const Home: React.FC = () => {
       toast.error('Authentication failed. Please try again.');
       router.replace('/login');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount, checking URL params
+  }, []);
 
-  // Memoize the fetchUserStats function
-  const fetchUserStats = React.useCallback(async () => {
-    try {
-      if (!authState.session?.$id) {
-        console.warn('No valid session found, skipping stats fetch');
-        return;
-      }
-      
-      const mockStats: UserStats = {
-        quizzes: 5, 
-        questions: 25
-      };
-      
-      setUserStats(mockStats);
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
+  const features = [
+    {
+      icon: <Brain className="h-8 w-8 text-primary" />,
+      title: "AI-Powered Generation",
+      description: "Advanced AI analyzes your text and creates relevant, engaging quiz questions automatically."
+    },
+    {
+      icon: <Zap className="h-8 w-8 text-primary" />,
+      title: "Instant Results",
+      description: "Generate comprehensive quizzes in seconds, not hours. Perfect for busy educators and trainers."
+    },
+    {
+      icon: <Target className="h-8 w-8 text-primary" />,
+      title: "Customizable Options",
+      description: "Tailor question difficulty, format, and focus areas to match your specific learning objectives."
+    },
+    {
+      icon: <BookOpen className="h-8 w-8 text-primary" />,
+      title: "Multiple Formats",
+      description: "Support for various question types including multiple choice, true/false, and short answer."
+    },
+    {
+      icon: <Users className="h-8 w-8 text-primary" />,
+      title: "Collaboration Ready",
+      description: "Share quizzes with colleagues, students, or team members with easy export options."
+    },
+    {
+      icon: <Sparkles className="h-8 w-8 text-primary" />,
+      title: "Smart Analytics",
+      description: "Track quiz performance and get insights to improve your educational content."
     }
-  }, [authState.session]);
+  ];
 
-  // Effect for fetching user stats
-  React.useEffect(() => {
-    if (authState.user) {
-      fetchUserStats();
-    }
-  }, [authState, fetchUserStats]);
-
-  // Handle CTA clicks
-  const handleCtaClick = (action: ConversionAction) => {
-    switch (action) {
-      case 'signup_clicked':
-        router.push('/signup');
-        break;
-      case 'login_clicked':
-        router.push('/login');
-        break;
-      case 'generate_clicked':
-        router.push('/generate');
-        break;
-      case 'learn_more_clicked':
-        // Scroll to features section or navigate to features page
-        const featuresSection = document.getElementById('features');
-        if (featuresSection) {
-          featuresSection.scrollIntoView({ behavior: 'smooth' });
-        } else {
-          router.push('/features');
-        }
-        break;
-      default:
-        break;
-    }
-  };
-
-  // Convert authState user to AuthUser format
-  const getAuthUser = (): AuthUser | null => {
-    if (!authState.user) return null;
-    
-    return {
-      $id: authState.user.$id,
-      name: authState.user.name || '',
-      email: authState.user.email,
-      prefs: authState.user.prefs || {}
-    };
-  };
+  const benefits = [
+    "Save hours of manual question writing",
+    "Improve student engagement with AI-generated content",
+    "Create consistent, high-quality assessments",
+    "Scale your educational content effortlessly"
+  ];
 
   return (
     <>
       <Head>
-        {/* Primary SEO Meta Tags */}
-        <title>GenText - AI-Powered Quiz Generator | Create Educational Quizzes Instantly</title>
-        <meta name="title" content="GenText - AI-Powered Quiz Generator | Create Educational Quizzes Instantly" />
-        <meta name="description" content="Transform any text into engaging quizzes with our AI-powered quiz generator. Perfect for educators, trainers, and content creators. Generate multiple-choice questions instantly from your content." />
-        <meta name="keywords" content="AI quiz generator, educational technology, quiz maker, question generator, e-learning tools, educational assessment, online quizzes, teaching tools, content creation, automated quiz generation" />
-        
-        {/* Canonical URL */}
-        <link rel="canonical" href="https://gentext.app" />
-        
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://gentext.app" />
-        <meta property="og:title" content="GenText - AI-Powered Quiz Generator | Create Educational Quizzes Instantly" />
-        <meta property="og:description" content="Transform any text into engaging quizzes with our AI-powered quiz generator. Perfect for educators, trainers, and content creators." />
-        <meta property="og:image" content="https://gentext.app/og-image.jpg" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:site_name" content="GenText" />
-        <meta property="og:locale" content="en_US" />
-        
-        {/* Twitter */}
-        <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://gentext.app" />
-        <meta property="twitter:title" content="GenText - AI-Powered Quiz Generator" />
-        <meta property="twitter:description" content="Transform any text into engaging quizzes with our AI-powered quiz generator. Perfect for educators and content creators." />
-        <meta property="twitter:image" content="https://gentext.app/twitter-image.jpg" />
-        <meta property="twitter:creator" content="@gentextapp" />
-        <meta property="twitter:site" content="@gentextapp" />
-        
-        {/* Additional Meta Tags */}
-        <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-        <meta name="googlebot" content="index, follow" />
-        <meta name="language" content="English" />
-        <meta name="revisit-after" content="7 days" />
-        <meta name="author" content="GenText Team" />
+        <title>GenText - AI-Powered Quiz Generator</title>
+        <meta name="description" content="Transform any text into engaging quizzes with our AI-powered quiz generator. Perfect for educators, trainers, and content creators." />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
-        
-        {/* Favicon and Icons */}
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest" />
-        <meta name="theme-color" content="#3b82f6" />
-        <meta name="msapplication-TileColor" content="#3b82f6" />
-        
-        {/* Structured Data - Organization */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Organization",
-              "name": "GenText",
-              "url": "https://gentext.app",
-              "logo": "https://gentext.app/logo.png",
-              "description": "AI-powered quiz generator for educational content creation",
-              "sameAs": [
-                "https://twitter.com/gentextapp",
-                "https://linkedin.com/company/gentext"
-              ],
-              "contactPoint": {
-                "@type": "ContactPoint",
-                "contactType": "customer service",
-                "email": "support@gentext.app"
-              }
-            })
-          }}
-        />
-        
-        {/* Structured Data - WebApplication */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebApplication",
-              "name": "GenText Quiz Generator",
-              "url": "https://gentext.app",
-              "applicationCategory": "EducationalApplication",
-              "operatingSystem": "Web Browser",
-              "description": "AI-powered quiz generator that transforms any text into engaging educational quizzes",
-              "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD",
-                "description": "Free tier available"
-              },
-              "featureList": [
-                "AI-powered question generation",
-                "Multiple choice quiz creation",
-                "Text analysis and processing",
-                "Educational content optimization",
-                "Real-time quiz generation"
-              ],
-              "screenshot": "https://gentext.app/screenshot.jpg",
-              "aggregateRating": {
-                "@type": "AggregateRating",
-                "ratingValue": "4.8",
-                "ratingCount": "127",
-                "bestRating": "5"
-              }
-            })
-          }}
-        />
-        
-        {/* Structured Data - Service */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Service",
-              "serviceType": "Educational Technology",
-              "provider": {
-                "@type": "Organization",
-                "name": "GenText"
-              },
-              "description": "AI-powered quiz generation service for educators and content creators",
-              "areaServed": "Worldwide",
-              "availableChannel": {
-                "@type": "ServiceChannel",
-                "serviceUrl": "https://gentext.app",
-                "serviceType": "Online"
-              }
-            })
-          }}
-        />
-        
-        {/* Structured Data - FAQ (if we have common questions) */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "How does the AI quiz generator work?",
-                  "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Our AI analyzes your text content and automatically generates relevant multiple-choice questions with distractors, making it easy to create engaging quizzes in seconds."
-                  }
-                },
-                {
-                  "@type": "Question",
-                  "name": "What types of content can I use?",
-                  "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "You can use any text content including articles, textbooks, documentation, training materials, and educational content to generate quizzes."
-                  }
-                },
-                {
-                  "@type": "Question",
-                  "name": "Is GenText free to use?",
-                  "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Yes, GenText offers a free tier that allows you to generate quizzes from your content. Premium features are available for advanced users."
-                  }
-                }
-              ]
-            })
-          }}
-        />
-        
-        {/* Performance and Loading Hints */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="//www.google-analytics.com" />
-        
-        {/* Security Headers */}
-        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
       </Head>
-      
-      <HomepageLayout 
-        user={getAuthUser()}
-        onCtaClick={handleCtaClick}
-        performanceMode="standard"
-        analyticsEnabled={true}
-      >
-        {/* Additional content can be added here if needed */}
-        {/* User stats display for authenticated users */}
-        {authState.user && (
-          <div className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center">
-                <h2 className="text-3xl font-bold text-gray-900 mb-8">
-                  Your Quiz Statistics
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="bg-blue-50 rounded-lg p-6">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">
-                      {userStats.quizzes}
-                    </div>
-                    <div className="text-gray-600">Quizzes Created</div>
-                  </div>
-                  <div className="bg-indigo-50 rounded-lg p-6">
-                    <div className="text-3xl font-bold text-indigo-600 mb-2">
-                      {userStats.questions}
-                    </div>
-                    <div className="text-gray-600">Questions Generated</div>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-6">
-                    <div className="text-3xl font-bold text-purple-600 mb-2">
-                      {Math.round((userStats.questions / userStats.quizzes) * 10) / 10 || 0}
-                    </div>
-                    <div className="text-gray-600">Average Questions per Quiz</div>
-                  </div>
+
+      <ErrorBoundary>
+        <div className="bg-background">
+        <BackgroundLines className="absolute inset-0 pointer-events-none" svgOptions={{ duration: 20 }}>
+            <></>
+          </BackgroundLines>
+        <div className="relative z-10">
+          {/* Hero Section */}
+          <section className="py-20 px-6 pt-32" aria-labelledby="hero-heading">
+            <div className="container mx-auto max-w-6xl">
+              <div className="text-center space-y-8">
+                {/* Badge */}
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-muted/50 text-sm text-muted-foreground">
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  AI-Powered Quiz Generation
+                </div>
+
+                {/* Main Heading */}
+                <div className="space-y-4">
+                  <h1 id="hero-heading" className="text-4xl md:text-6xl font-bold tracking-tight text-foreground">
+                    Transform Text into
+                    <span className="block text-primary">Engaging Quizzes</span>
+                  </h1>
+                  <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                    Create educational assessments in seconds with our AI-powered quiz generator. 
+                    Perfect for educators, trainers, and content creators.
+                  </p>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                  {authState.user ? (
+                    <Button 
+                      size="lg" 
+                      className="h-12 px-8 text-base focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      onClick={() => router.push('/generate')}
+                      aria-describedby="hero-heading"
+                    >
+                      Create Quiz Now
+                      <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  ) : (
+                    <>
+                      <Button 
+                        size="lg" 
+                        className="h-12 px-8 text-base focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        onClick={() => router.push('/signup')}
+                        aria-describedby="hero-heading"
+                      >
+                        Get Started Free
+                        <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="h-12 px-8 text-base focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        onClick={() => router.push('/login')}
+                      >
+                        Sign In
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </HomepageLayout>
+          </section>
+
+          {/* User Stats Section */}
+          {authState.user && (
+            <section className="py-16 px-6 bg-muted/20">
+              <div className="container mx-auto max-w-4xl">
+                <ErrorBoundary>
+                  <UserStatsDisplay
+                    stats={realUserStats}
+                    isLoading={statsLoading}
+                    error={statsError}
+                    onRetry={refetchStats}
+                    compact={true}
+                  />
+                </ErrorBoundary>
+              </div>
+            </section>
+          )}
+
+          {/* Features Section with 3D Cards */}
+          <section className="py-20 px-6 bg-muted/30" aria-labelledby="features-heading">
+            <div className="container mx-auto max-w-7xl">
+              <div className="text-center mb-16">
+                <h2 id="features-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+                  Powerful Features for Modern Education
+                </h2>
+                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                  Everything you need to create engaging, effective quizzes that enhance learning outcomes.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" role="list">
+                {features.map((feature, index) => (
+                  <div key={index} role="listitem">
+                    <CardContainer className="inter-var">
+                      <CardBody className="bg-card relative group/card border-border/50 w-full h-auto rounded-xl p-6 border hover:shadow-2xl hover:shadow-primary/[0.1] transition-all duration-300 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                        <CardItem
+                          translateZ="50"
+                          className="mb-4"
+                        >
+                          <div className="p-3 rounded-lg bg-primary/10 w-fit" aria-hidden="true">
+                            {feature.icon}
+                          </div>
+                        </CardItem>
+                        
+                        <CardItem
+                          translateZ="60"
+                          className="text-xl font-semibold text-foreground mb-2"
+                          as="h3"
+                        >
+                          {feature.title}
+                        </CardItem>
+                        
+                        <CardItem
+                          translateZ="40"
+                          className="text-muted-foreground text-sm leading-relaxed"
+                          as="p"
+                        >
+                          {feature.description}
+                        </CardItem>
+                      </CardBody>
+                    </CardContainer>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Benefits Section */}
+          <section className="py-20 px-6">
+            <div className="container mx-auto max-w-4xl">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+                  Why Choose GenText?
+                </h2>
+                <p className="text-xl text-muted-foreground">
+                  Join thousands of educators who trust GenText for their quiz generation needs.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {benefits.map((benefit, index) => (
+                  <div key={index} className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card/50">
+                    <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                    <span className="text-foreground">{benefit}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* User Stats Section (for authenticated users) */}
+          {authState.user && (
+            <section className="py-20 px-6 bg-muted/30">
+              <div className="container mx-auto max-w-4xl">
+                <div className="text-center mb-12">
+                  <h2 className="text-3xl font-bold text-foreground mb-4">
+                    Your Quiz Statistics
+                  </h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <Card>
+                    <CardHeader className="text-center pb-2">
+                      <CardTitle className="text-3xl font-bold text-primary">
+                        {userStats.quizzes}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <p className="text-muted-foreground">Quizzes Created</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="text-center pb-2">
+                      <CardTitle className="text-3xl font-bold text-primary">
+                        {userStats.questions}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <p className="text-muted-foreground">Questions Generated</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="text-center pb-2">
+                      <CardTitle className="text-3xl font-bold text-primary">
+                        {Math.round((userStats.questions / userStats.quizzes) * 10) / 10 || 0}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                      <p className="text-muted-foreground">Avg Questions per Quiz</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* CTA Section */}
+          <section className="py-20 px-6 pb-32">
+            <div className="container mx-auto max-w-4xl text-center">
+              <Card className="bg-gradient-to-br from-primary/5 via-background to-primary/5 border-primary/20">
+                <CardContent className="p-12">
+                  <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+                    Ready to Transform Your Teaching?
+                  </h2>
+                  <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+                    Start creating engaging quizzes in minutes. Join thousands of educators 
+                    who have revolutionized their assessment process with GenText.
+                  </p>
+                  
+                  {!authState.user && (
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <Button 
+                        size="lg" 
+                        className="h-12 px-8 text-base"
+                        onClick={() => router.push('/signup')}
+                      >
+                        Start Creating Quizzes
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="h-12 px-8 text-base"
+                        onClick={() => router.push('/login')}
+                      >
+                        Sign In
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        </div>
+        </div>
+      </ErrorBoundary>
     </>
   );
 };
