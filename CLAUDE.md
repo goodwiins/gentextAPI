@@ -121,6 +121,21 @@ Set in `server/src/scripts/set_env.sh`:
 4. **Error Handling**: Consistent error handling with toast notifications on frontend
 5. **API Integration**: Centralized in `frontend/src/lib/api-service.ts` and `quizService.ts`
 
+## Feature-Specific Guidance
+
+### Homepage Design Improvements (Branch: 004-improve-design-based)
+**Performance Requirements**: Must meet Core Web Vitals "Good" thresholds (LCP < 2.5s, FID < 100ms, CLS < 0.1)
+**Accessibility**: WCAG 2.1 AA compliance required
+**Responsive Design**: Mobile (320px+), Tablet (768px+), Desktop (1024px+)
+**Error Handling**: Skeleton placeholders + retry button for failed data loads
+
+Key Implementation Notes:
+- Use existing TailwindCSS responsive utilities
+- Leverage Radix UI components for accessibility
+- Implement reduced motion support for animations
+- Prioritize performance optimization for mobile devices
+- Use semantic HTML structure throughout
+
 ## Deployment
 
 - Backend deploys to DigitalOcean with NGINX reverse proxy

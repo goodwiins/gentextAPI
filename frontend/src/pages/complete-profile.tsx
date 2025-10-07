@@ -60,15 +60,30 @@ export default function CompleteProfile() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    
+
     if (!validateForm()) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      if (!authState.user) {
-        throw new Error('User not found. Please log in again.');
+      if (!authState.user || !authState.session) {
+        throw new Error('Your session has expired. Please log in again.');
+      }
+
+      // Verify session is still valid before updating
+      try {
+        const session = await account.getSession('current');
+        if (!session) {
+          throw new Error('Your session has expired. Please log in again.');
+        }
+      } catch (sessionError: any) {
+        if (sessionError?.message?.includes('missing scopes') ||
+            sessionError?.message?.includes('guests') ||
+            sessionError?.type === 'user_unauthorized') {
+          throw new Error('Your session has expired. Please log in again.');
+        }
+        throw sessionError;
       }
 
       // Format the user ID to meet Appwrite's requirements
@@ -92,6 +107,19 @@ export default function CompleteProfile() {
       router.refresh(); // Refresh the page to update auth state
     } catch (error: any) {
       console.error("Error updating profile:", error);
+
+      // Handle session expiration and scope errors
+      if (error?.message?.includes('session has expired') ||
+          error?.message?.includes('missing scopes') ||
+          error?.message?.includes('guests') ||
+          error?.type === 'user_unauthorized') {
+        toast.error('Your session has expired. Please log in again.');
+        setTimeout(() => {
+          router.push('/login');
+        }, 1500);
+        return;
+      }
+
       const errorMessage = error.message || 'Failed to update profile';
       setError(errorMessage);
       toast.error(errorMessage);

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { account, databases } from './appwrite-config';
+import { account, databases } from './appwrite';
 import { ID, AppwriteException } from 'appwrite';
 import httpClient from '../httpClient';
 
@@ -29,7 +29,8 @@ class ApiService {
     async loginWithAppwrite(credentials: LoginCredentials) {
         try {
             console.log('Attempting Appwrite login...');
-            const session = await account.createSession(
+            // Use createEmailPasswordSession instead of createSession for proper authentication
+            const session = await account.createEmailPasswordSession(
                 credentials.email,
                 credentials.password
             );
@@ -114,6 +115,27 @@ class ApiService {
     async getCurrentUser() {
         try {
             console.log('Attempting to get current user...');
+            
+            // First check if we have a valid session before trying to get user details
+            try {
+                const session = await account.getSession('current');
+                if (!session) {
+                    console.log('No valid session found, user is not authenticated');
+                    return null;
+                }
+            } catch (sessionError: any) {
+                // Handle scope errors gracefully - no session means user is not authenticated
+                if (sessionError.message?.includes('missing scopes') || 
+                    sessionError.type === 'user_unauthorized' ||
+                    sessionError.message?.includes('guests')) {
+                    console.log('User lacks required scopes, treating as unauthenticated');
+                    return null;
+                }
+                console.log('Session check failed:', sessionError.message);
+                return null;
+            }
+            
+            // Only try to get user if we have a valid session
             const user = await account.get();
             console.log('Current user:', user);
             return user;
@@ -124,6 +146,14 @@ class ApiService {
                     message: error.message,
                     type: error.type
                 });
+                
+                // Handle specific scope errors gracefully
+                if (error.message?.includes('missing scopes') || 
+                    error.type === 'user_unauthorized' ||
+                    error.message?.includes('guests')) {
+                    console.log('User lacks required scopes, treating as unauthenticated');
+                    return null;
+                }
             } else {
                 console.error('Unknown Get Current User Error:', error);
             }

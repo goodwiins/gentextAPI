@@ -97,6 +97,16 @@ const config = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
+  			},
+  			sidebar: {
+  				DEFAULT: 'hsl(var(--sidebar-background))',
+  				foreground: 'hsl(var(--sidebar-foreground))',
+  				primary: 'hsl(var(--sidebar-primary))',
+  				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+  				accent: 'hsl(var(--sidebar-accent))',
+  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+  				border: 'hsl(var(--sidebar-border))',
+  				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
   		borderRadius: {
@@ -247,7 +257,7 @@ const config = {
   					opacity: '0.8'
   				}
   			},
-  			'shimmer': {
+  			shimmer: {
   				'0%': {
   					backgroundPosition: '-1000px 0'
   				},
@@ -263,7 +273,7 @@ const config = {
   			'slide-in-right': 'slide-in-right 0.3s ease-out',
   			'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
   			'pulse-slow': 'pulse-slow 3s ease-in-out infinite',
-  			'shimmer': 'shimmer 2s ease-in-out infinite'
+  			shimmer: 'shimmer 2s ease-in-out infinite'
   		},
   		backdropBlur: {
   			xs: '2px'

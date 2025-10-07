@@ -1,5 +1,4 @@
 "use client";
-import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme-provider';
 import React, { ReactNode, useState } from "react";
@@ -19,7 +18,7 @@ function Provider({ children }: Props) {
         enableSystem
         disableTransitionOnChange
       >
-        <SessionProvider>{children}</SessionProvider>
+        {children}
       </ThemeProvider>
     </QueryClientProvider>
   );
