@@ -4,6 +4,8 @@
 
 This application generates educational questions based on text input, designed to help users create quiz-style flashcards for learning purposes. The system uses NLP and AI to analyze text content and generate relevant quiz questions by creating factual and false statements based on the original text.
 
+**🎯 Latest Enhancement**: Homepage design and user experience improvements featuring responsive design, WCAG 2.1 AA accessibility compliance, Core Web Vitals optimization, and enhanced user interaction flows.
+
 ## System Architecture
 
 The application consists of two main components:
