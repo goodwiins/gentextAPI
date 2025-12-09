@@ -47,6 +47,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import PhoneSetup from "@/components/auth/phone-setup"
 import MfaSettings from "@/components/auth/mfa-settings"
+import PasswordChange from "@/components/auth/password-change"
+import TotpSetup from "@/components/auth/totp-setup"
+import ActivityLog from "@/components/auth/activity-log"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BackgroundBeams } from "@/components/ui/background-beams"
 
@@ -871,6 +874,15 @@ export default function Setting() {
                     </p>
                   </div>
 
+                  {/* Password Change Card */}
+                  <PasswordChange
+                    onSuccess={() => toast.success('Password updated!')}
+                    onError={(err) => toast.error(err)}
+                  />
+
+                  {/* TOTP Authenticator App Card */}
+                  <TotpSetup userId={authState.user?.$id} />
+
                   {/* Phone Setup Card */}
                   <Card>
                     <CardHeader>
@@ -1027,6 +1039,9 @@ export default function Setting() {
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Activity Log Card */}
+                  <ActivityLog userId={authState.user?.$id} />
 
                   {/* Danger Zone Card */}
                   <Card className="border-destructive/50">

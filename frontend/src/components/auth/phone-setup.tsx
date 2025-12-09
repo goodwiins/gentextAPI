@@ -146,7 +146,7 @@ export default function PhoneSetup({ password, onSuccess, onError }: PhoneSetupP
     <Card className="w-full max-w-md">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Phone className="h-5 w-5 text-gray-700" />
+          <Phone className="h-5 w-5 text-muted-foreground" />
           <CardTitle>Add Phone Number</CardTitle>
         </div>
         <CardDescription>
@@ -181,7 +181,7 @@ export default function PhoneSetup({ password, onSuccess, onError }: PhoneSetupP
                         {...field}
                       />
                     </FormControl>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Format: +[country code][number] (e.g., +15551234567)
                     </p>
                     <FormMessage />
@@ -204,8 +204,8 @@ export default function PhoneSetup({ password, onSuccess, onError }: PhoneSetupP
         ) : (
           <Form {...otpForm}>
             <form onSubmit={otpForm.handleSubmit(handleOtpSubmit)} className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-blue-800">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4">
+                <p className="text-sm text-primary">
                   Code sent to <strong>{phoneNumber}</strong>
                 </p>
               </div>

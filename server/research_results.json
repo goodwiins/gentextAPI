@@ -1,0 +1,16 @@
+{
+  "timestamp": 1765156382.307102,
+  "attacks": {
+    "credential_stuffing": {
+      "attempts": 25,
+      "success_no_mfa": 5,
+      "success_mfa_blocked": 15,
+      "failed": 5
+    },
+    "brute_force": {
+      "password_user_compromised": true,
+      "sms_user_password_found": true,
+      "sms_user_full_access": false
+    }
+  }
+}

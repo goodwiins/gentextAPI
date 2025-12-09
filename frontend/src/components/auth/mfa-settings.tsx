@@ -152,7 +152,7 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-gray-700" />
+              <Shield className="h-5 w-5 text-muted-foreground" />
               <CardTitle>Two-Factor Authentication</CardTitle>
             </div>
             {isMfaEnabled ? (
@@ -181,7 +181,7 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
 
           {/* MFA Status */}
           {mfaFactors && (
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <div className="bg-muted rounded-lg p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">SMS Authentication</span>
                 <Badge variant={mfaFactors.phone ? "default" : "secondary"}>
@@ -189,7 +189,7 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
                 </Badge>
               </div>
               {mfaFactors.phone && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   You&apos;ll receive a code via SMS when logging in
                 </p>
               )}
@@ -235,7 +235,7 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-gray-700" />
+              <Key className="h-5 w-5 text-muted-foreground" />
               <CardTitle>Recovery Codes</CardTitle>
             </div>
             <CardDescription>
@@ -271,7 +271,7 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
                   </AlertDescription>
                 </Alert>
 
-                <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm space-y-2">
+                <div className="bg-muted rounded-lg p-4 font-mono text-sm space-y-2">
                   {recoveryCodes.map((code, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <span>{code}</span>

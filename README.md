@@ -10,31 +10,43 @@ This application generates educational questions based on text input, designed t
 
 The application consists of two main components:
 
-1. **Backend (Flask API)**: 
-   - Processes text input and generates questions
-   - Handles user authentication and data storage
-   - Tracks user interactions
+1. **Backend (FastAPI Server)**:
+   - Processes text input and generates questions using AI models (GPT-2, Claude API, transformers)
+   - Handles user authentication and data storage via Appwrite
+   - Tracks user interactions and quiz statistics
+   - Provides RESTful API endpoints for frontend integration
 
-2. **Frontend (Next.js)**: 
-   - Provides a user interface for text submission
-   - Displays generated questions in a quiz format
-   - Manages user authentication and history
+2. **Frontend (Next.js 15 with TypeScript)**:
+   - Modern responsive homepage with enhanced user experience and design
+   - Provides interface for text submission and quiz generation
+   - Displays generated questions in an interactive quiz format
+   - Manages user authentication with Appwrite integration
+   - Tracks user statistics and learning progress
+   - Implements WCAG 2.1 AA accessibility features
+   - Optimized for Core Web Vitals performance standards
 
 ### Technology Stack
 
 - **Backend**:
-  - Python FastAPI
-  - SQLAlchemy ORM
-  - JWT Authentication
-  - Hugging Face Transformers
-  - GPT-2 Medium model for text generation
-  - Claude API integration
+  - Python FastAPI with async support
+  - Appwrite SDK for database operations and authentication
+  - Multiple AI model integrations:
+    - GPT-2 Medium (local generation)
+    - Claude API (high-quality generation)
+    - xAI Grok (via OpenRoute API)
+    - Transformers library (sentence processing)
+  - spaCy and NLTK for text processing
+  - SQLAlchemy for data modeling
 
 - **Frontend**:
-  - Next.js with TypeScript
-  - Tailwind CSS
-  - ShadCN UI components
-  - React hooks for state management
+  - Next.js 15 with TypeScript and App Router
+  - Tailwind CSS for responsive design
+  - ShadCN UI components (Radix UI primitives)
+  - React Query for server state management
+  - Custom hooks for responsive behavior and user interactions
+  - Toast notifications with react-hot-toast
+  - Skeleton loading states and error boundaries
+  - WCAG 2.1 AA accessibility features
 
 ## Setup Instructions
 
@@ -105,6 +117,14 @@ If you encounter field name errors in your Appwrite database, make sure the fiel
 - `questions`
 
 ## Features
+
+### 🎨 Homepage Design & User Experience
+- **Responsive Design**: Mobile-first approach with breakpoints for mobile (320px+), tablet (768px+), and desktop (1024px+)
+- **Accessibility Compliance**: WCAG 2.1 AA standard with keyboard navigation, ARIA labels, and screen reader support
+- **Performance Optimization**: Core Web Vitals "Good" thresholds (LCP < 2.5s, FID < 100ms, CLS < 0.1)
+- **Enhanced User Interface**: Modern hero section, feature cards, improved navigation, and visual feedback
+- **Loading States**: Skeleton placeholders and graceful error handling for failed data loads
+- **Session Management**: Persistent user authentication state and personalized content display
 
 ### Core Functionality
 
@@ -232,6 +252,21 @@ If you encounter field name errors in your Appwrite database, make sure the fiel
 #### Question Generation Issues
 - Ensure your input text is sufficiently long and contains complete sentences
 - Check that your text contains factual statements that can be transformed into questions
+
+## 🚀 Recent Homepage Enhancements
+
+### User Experience Improvements
+- **Modern Hero Section**: Enhanced value proposition with gradient background and clear call-to-action buttons
+- **Interactive Feature Cards**: Redesigned feature showcase with hover effects and improved descriptions
+- **Responsive Navigation**: Mobile-optimized menu and touch-friendly interface elements
+- **Loading State Management**: Skeleton placeholders for user statistics and error recovery mechanisms
+- **Session Persistence**: Maintains user state and loading indicators across page refreshes
+
+### Technical Improvements
+- **Performance Optimization**: Core Web Vitals compliance with lazy loading and optimized assets
+- **Accessibility Features**: WCAG 2.1 AA compliance with proper ARIA labels and keyboard navigation
+- **Component Architecture**: Modular design with reusable UI components and TypeScript interfaces
+- **Error Handling**: Comprehensive error boundaries with graceful fallbacks and retry functionality
 
 ## Future Enhancements
 
