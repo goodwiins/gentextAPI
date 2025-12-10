@@ -20,7 +20,20 @@ type AuthContextType = {
   clearAuthError: () => void;
   refreshAuth: () => Promise<void>;
   // MFA methods
-  loginWithMFA: (email: string, password: string, otp?: string, challengeId?: string, rememberDevice?: boolean) => Promise<{ session?: any; requiresMFA?: boolean; challengeId?: string }>;
+  loginWithMFA: (
+    email: string, 
+    password: string, 
+    otp?: string, 
+    challengeId?: string, 
+    rememberDevice?: boolean,
+    mfaMethod?: 'phone' | 'totp'
+  ) => Promise<{ 
+    session?: any; 
+    requiresMFA?: boolean; 
+    challengeId?: string;
+    availableMethods?: { phone: boolean; totp: boolean };
+    selectedMethod?: 'phone' | 'totp';
+  }>;
   setupPhoneMFA: (phone: string, password: string) => Promise<void>;
   verifyPhone: (userId: string, otp: string) => Promise<void>;
   getMfaStatus: () => Promise<any>;
@@ -242,12 +255,19 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     password: string,
     otp?: string,
     challengeId?: string,
-    rememberDevice?: boolean
-  ): Promise<{ session?: any; requiresMFA?: boolean; challengeId?: string }> => {
+    rememberDevice?: boolean,
+    mfaMethod?: 'phone' | 'totp'
+  ): Promise<{ 
+    session?: any; 
+    requiresMFA?: boolean; 
+    challengeId?: string;
+    availableMethods?: { phone: boolean; totp: boolean };
+    selectedMethod?: 'phone' | 'totp';
+  }> => {
     setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const result = await appwriteAuth.loginWithMFA(email, password, otp, challengeId, rememberDevice);
+      const result = await appwriteAuth.loginWithMFA(email, password, otp, challengeId, rememberDevice, mfaMethod);
 
       if (result.requiresMFA) {
         // MFA required, don't set user yet

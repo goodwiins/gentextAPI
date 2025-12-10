@@ -18,7 +18,7 @@ interface TotpSetupProps {
 export default function TotpSetup({ userId, onSuccess, onError }: TotpSetupProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<'idle' | 'setup' | 'verify'>('idle');
+  const [step, setStep] = useState<'idle' | 'setup' | 'verify' | 'confirm-reconfigure'>('idle');
   const [totpSecret, setTotpSecret] = useState<string>("");
   const [totpUri, setTotpUri] = useState<string>("");
   const [verificationCode, setVerificationCode] = useState<string>("");
@@ -52,6 +52,32 @@ export default function TotpSetup({ userId, onSuccess, onError }: TotpSetupProps
       setError(errorMessage);
       toast.error(errorMessage);
       onError?.(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReconfigure = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // First, delete the existing TOTP authenticator
+      await appwriteAuth.deleteMfaAuthenticator('totp');
+      toast.success("Previous authenticator removed");
+      
+      // Then create a new one
+      const result = await appwriteAuth.createMfaAuthenticator('totp');
+      setTotpSecret(result.secret);
+      setTotpUri(result.uri);
+      setStep('setup');
+      setIsTotpEnabled(false);
+    } catch (err: any) {
+      const errorMessage = err.message || "Failed to reconfigure authenticator";
+      setError(errorMessage);
+      toast.error(errorMessage);
+      onError?.(errorMessage);
+      setStep('idle');
     } finally {
       setIsLoading(false);
     }
@@ -247,10 +273,65 @@ export default function TotpSetup({ userId, onSuccess, onError }: TotpSetupProps
                 Your account is protected with time-based one-time passwords from your authenticator app.
               </p>
             </div>
-            <Button variant="outline" className="w-full" disabled>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => setStep('confirm-reconfigure')}
+              disabled={isLoading}
+            >
               <Smartphone className="mr-2 h-4 w-4" />
-              Reconfigure App (Coming Soon)
+              Reconfigure App
             </Button>
+          </div>
+        )}
+
+        {step === 'confirm-reconfigure' && (
+          <div className="space-y-4">
+            <Alert className="border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950">
+              <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <AlertDescription className="text-sm text-orange-800 dark:text-orange-200">
+                <strong>Warning:</strong> This will remove your current authenticator app and require you to set up a new one. 
+                Make sure you have access to your backup codes before proceeding.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="bg-muted rounded-lg p-4">
+              <h4 className="font-medium mb-2">What happens next:</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Your current authenticator will be disabled</li>
+                <li>• You&apos;ll get a new QR code to scan</li>
+                <li>• You&apos;ll need to verify the new setup with a code</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setStep('idle')}
+                disabled={isLoading}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={handleReconfigure}
+                disabled={isLoading}
+                className="flex-1"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Reconfiguring...
+                  </>
+                ) : (
+                  <>
+                    <Smartphone className="mr-2 h-4 w-4" />
+                    Reconfigure Now
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

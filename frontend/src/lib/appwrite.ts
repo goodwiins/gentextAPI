@@ -443,12 +443,37 @@ export const appwriteAuth = {
         }
     },
 
-    // Login with MFA support
-    loginWithMFA: async (email: string, password: string, otp?: string, challengeId?: string, rememberDevice?: boolean): Promise<{ session?: Models.Session; requiresMFA?: boolean; challengeId?: string }> => {
+    // Delete MFA authenticator (disable TOTP or phone MFA)
+    deleteMfaAuthenticator: async (type: 'totp' | 'phone') => {
+        try {
+            const response = await account.deleteMfaAuthenticator(type as any);
+            console.log(`MFA authenticator deleted: ${type}`);
+            return response;
+        } catch (error) {
+            console.error('Appwrite service :: deleteMfaAuthenticator :: error', error);
+            throw error;
+        }
+    },
+
+    // Login with MFA support - supports multiple MFA methods (SMS and TOTP)
+    loginWithMFA: async (
+        email: string, 
+        password: string, 
+        otp?: string, 
+        challengeId?: string, 
+        rememberDevice?: boolean,
+        mfaMethod?: 'phone' | 'totp'
+    ): Promise<{ 
+        session?: Models.Session; 
+        requiresMFA?: boolean; 
+        challengeId?: string;
+        availableMethods?: { phone: boolean; totp: boolean };
+        selectedMethod?: 'phone' | 'totp';
+    }> => {
         try {
             const existingSession = await getExistingSession();
 
-            if (existingSession && !otp) {
+            if (existingSession && !otp && !mfaMethod) {
                 console.log('Existing session detected, skipping MFA login flow.');
                 return { session: existingSession };
             }
@@ -485,6 +510,19 @@ export const appwriteAuth = {
                 };
             }
 
+            // If mfaMethod is provided, create challenge for that specific method
+            if (mfaMethod) {
+                console.log(`Creating MFA challenge for ${mfaMethod} factor...`);
+                const challenge = await account.createMfaChallenge(mfaMethod as any);
+                console.log(`${mfaMethod.toUpperCase()} MFA challenge created`);
+                
+                return {
+                    requiresMFA: true,
+                    challengeId: challenge.$id,
+                    selectedMethod: mfaMethod
+                };
+            }
+
             clearSessionCache();
 
             // Step 1: Create initial session
@@ -495,25 +533,44 @@ export const appwriteAuth = {
             
             // Step 2: Check if MFA is required
             const mfaFactors = await account.listMfaFactors();
+            const hasPhone = !!mfaFactors.phone;
+            const hasTotp = !!mfaFactors.totp;
             
-            if (mfaFactors.phone && !otp) {
-                // MFA is required but no OTP provided - create challenge
+            console.log('MFA factors available:', { phone: hasPhone, totp: hasTotp });
+            
+            // If both methods are available, let user choose
+            if (hasPhone && hasTotp) {
+                console.log('Multiple MFA methods available, letting user choose...');
+                return {
+                    requiresMFA: true,
+                    availableMethods: { phone: hasPhone, totp: hasTotp }
+                };
+            }
+            
+            // If only one method is available, automatically use it
+            if (hasPhone && !otp) {
                 console.log('Creating MFA challenge for phone factor...');
                 const challenge = await account.createMfaChallenge('phone' as any);
                 console.log('SMS MFA challenge created, code sent to phone');
-                console.log('Session after MFA challenge creation:', session.$id);
-                
-                // Verify session is still valid after challenge creation
-                try {
-                    const currentSession = await account.getSession('current');
-                    console.log('Session verified after challenge creation:', currentSession.$id);
-                } catch (error) {
-                    console.error('Session verification failed after challenge creation:', error);
-                }
                 
                 return {
                     requiresMFA: true,
-                    challengeId: challenge.$id
+                    challengeId: challenge.$id,
+                    selectedMethod: 'phone',
+                    availableMethods: { phone: true, totp: false }
+                };
+            }
+            
+            if (hasTotp && !otp) {
+                console.log('TOTP MFA required...');
+                const challenge = await account.createMfaChallenge('totp' as any);
+                console.log('TOTP MFA challenge created');
+                
+                return {
+                    requiresMFA: true,
+                    challengeId: challenge.$id,
+                    selectedMethod: 'totp',
+                    availableMethods: { phone: false, totp: true }
                 };
             }
             

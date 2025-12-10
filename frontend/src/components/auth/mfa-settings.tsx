@@ -112,8 +112,11 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
       console.error("Generate recovery codes error:", err);
       const errorMessage = err.message || "Failed to generate recovery codes";
 
-      // Handle session-related errors with helpful message
-      if (errorMessage.includes("session is prohibited") || errorMessage.includes("session is active")) {
+      // Handle case where recovery codes already exist
+      if (errorMessage.includes("already generated") || errorMessage.includes("only be read once")) {
+        setError("Recovery codes have already been generated. For security reasons, they can only be viewed once. If you've lost your codes, please contact support.");
+        toast.error("Recovery codes already generated");
+      } else if (errorMessage.includes("session is prohibited") || errorMessage.includes("session is active")) {
         setError("Recovery codes are already being generated. Please refresh the page and try again.");
         toast.error("Please refresh the page and try again");
       } else {

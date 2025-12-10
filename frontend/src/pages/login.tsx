@@ -54,6 +54,9 @@ export default function Login() {
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showMfaInput, setShowMfaInput] = useState(false);
+  const [showMfaMethodSelect, setShowMfaMethodSelect] = useState(false);
+  const [availableMfaMethods, setAvailableMfaMethods] = useState<{ phone: boolean; totp: boolean } | null>(null);
+  const [selectedMfaMethod, setSelectedMfaMethod] = useState<'phone' | 'totp' | null>(null);
   const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [rememberDevice, setRememberDevice] = useState(false);
@@ -256,10 +259,25 @@ const SuccessAnimation = () => {
       const result = await loginWithMFA(data.email, data.password);
 
       if (result.requiresMFA) {
-        // MFA required - show OTP input
+        // Check if multiple methods are available
+        if (result.availableMethods && result.availableMethods.phone && result.availableMethods.totp) {
+          // Both methods available - let user choose
+          setAvailableMfaMethods(result.availableMethods);
+          setShowMfaMethodSelect(true);
+          toast.success('Please choose your verification method');
+          return;
+        }
+
+        // Single method or method already selected
         setShowMfaInput(true);
         setMfaChallengeId(result.challengeId || null);
-        toast.success('Verification code sent to your phone!');
+        setSelectedMfaMethod(result.selectedMethod || null);
+        
+        if (result.selectedMethod === 'phone') {
+          toast.success('Verification code sent to your phone!');
+        } else if (result.selectedMethod === 'totp') {
+          toast.success('Enter the code from your authenticator app');
+        }
         return;
       }
 
@@ -298,10 +316,67 @@ const SuccessAnimation = () => {
     }
   };
 
+  // Handler for when user selects an MFA method
+  const handleMfaMethodSelect = async (method: 'phone' | 'totp') => {
+    if (!credentials) {
+      toast.error('Session expired. Please login again.');
+      setShowMfaMethodSelect(false);
+      return;
+    }
+
+    setLocalError(null);
+
+    try {
+      // Create challenge for the selected method
+      const result = await loginWithMFA(
+        credentials.email,
+        credentials.password,
+        undefined,
+        undefined,
+        undefined,
+        method
+      );
+
+      if (result.challengeId) {
+        setMfaChallengeId(result.challengeId);
+        setSelectedMfaMethod(method);
+        setShowMfaMethodSelect(false);
+        setShowMfaInput(true);
+        
+        if (method === 'phone') {
+          toast.success('Verification code sent to your phone!');
+        } else {
+          toast.success('Enter the code from your authenticator app');
+        }
+      }
+    } catch (error: any) {
+      console.error("Error creating MFA challenge:", error);
+      let errorMessage = error.message || 'Failed to create verification challenge';
+      
+      // Handle specific error cases
+      if (error.message?.includes('Invalid token') || error.message?.includes('invalid token')) {
+        errorMessage = 'Your session has expired. Please login again.';
+        // Reset all MFA state
+        setShowMfaMethodSelect(false);
+        setShowMfaInput(false);
+        setCredentials(null);
+        setMfaChallengeId(null);
+        setSelectedMfaMethod(null);
+        setAvailableMfaMethods(null);
+      }
+      
+      setLocalError(errorMessage);
+      toast.error(errorMessage);
+    }
+  };
+
   const onOtpSubmit = async (data: OtpFormValues) => {
     if (!credentials || !mfaChallengeId) {
       toast.error('Session expired. Please login again.');
       setShowMfaInput(false);
+      setShowMfaMethodSelect(false);
+      setMfaChallengeId(null);
+      setSelectedMfaMethod(null);
       return;
     }
 
@@ -323,7 +398,22 @@ const SuccessAnimation = () => {
       }
     } catch (error: any) {
       console.error("Error during MFA verification:", error);
-      const errorMessage = error.message || 'Invalid verification code';
+      let errorMessage = error.message || 'Invalid verification code';
+      
+      // Handle specific error cases
+      if (error.message?.includes('Invalid token') || error.message?.includes('invalid token')) {
+        errorMessage = 'The verification code is invalid or has expired. Please try again.';
+        // Reset MFA state to let user retry
+        setShowMfaInput(false);
+        setShowMfaMethodSelect(false);
+        setMfaChallengeId(null);
+        setSelectedMfaMethod(null);
+        setAvailableMfaMethods(null);
+        setCredentials(null);
+      } else if (error.message?.includes('Invalid OTP') || error.message?.includes('expired')) {
+        errorMessage = 'The verification code is incorrect or has expired. Please request a new code.';
+      }
+      
       setLocalError(errorMessage);
       toast.error(errorMessage);
     }
@@ -415,18 +505,113 @@ const SuccessAnimation = () => {
               >
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-[13px] leading-relaxed">
-                  {displayError}
+                  <div className="flex flex-col gap-2">
+                    <span>{displayError}</span>
+                    {(displayError.includes('expired') || displayError.includes('invalid') || displayError.includes('Invalid token')) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-fit text-xs"
+                        onClick={() => {
+                          setLocalError(null);
+                          clearAuthError();
+                          setShowMfaInput(false);
+                          setShowMfaMethodSelect(false);
+                          setMfaChallengeId(null);
+                          setSelectedMfaMethod(null);
+                          setAvailableMfaMethods(null);
+                          setCredentials(null);
+                        }}
+                      >
+                        ↻ Try Again
+                      </Button>
+                    )}
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* MFA OTP Input */}
-            {showMfaInput ? (
+            {/* MFA Method Selection */}
+            {showMfaMethodSelect && availableMfaMethods ? (
               <div className="space-y-5">
                 <Alert className="border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950">
                   <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   <AlertDescription className="text-[13px] text-blue-800 dark:text-blue-200">
-                    Enter the 6-digit verification code sent to your phone
+                    Choose your preferred verification method to continue
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-3">
+                  {availableMfaMethods.phone && (
+                    <button
+                      type="button"
+                      onClick={() => handleMfaMethodSelect('phone')}
+                      disabled={isLoading}
+                      className="w-full flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900">
+                        <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-[15px]">📱 SMS Code</div>
+                        <div className="text-[13px] text-muted-foreground">
+                          Send a verification code to your phone
+                        </div>
+                      </div>
+                      <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {availableMfaMethods.totp && (
+                    <button
+                      type="button"
+                      onClick={() => handleMfaMethodSelect('totp')}
+                      disabled={isLoading}
+                      className="w-full flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900">
+                        <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-[15px]">🔐 Authenticator App</div>
+                        <div className="text-[13px] text-muted-foreground">
+                          Use Google Authenticator or similar app
+                        </div>
+                      </div>
+                      <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  onClick={() => {
+                    setShowMfaMethodSelect(false);
+                    setCredentials(null);
+                  }}
+                >
+                  ← Back to login
+                </Button>
+              </div>
+            ) : showMfaInput ? (
+              <div className="space-y-5">
+                <Alert className="border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950">
+                  <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-[13px] text-blue-800 dark:text-blue-200">
+                    {selectedMfaMethod === 'totp' 
+                      ? 'Enter the 6-digit code from your authenticator app'
+                      : 'Enter the 6-digit verification code sent to your phone'}
                   </AlertDescription>
                 </Alert>
 
