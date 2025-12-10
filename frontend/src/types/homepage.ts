@@ -240,6 +240,7 @@ export interface UserStatsApiSuccessResponse {
   meta?: {
     timestamp: string;
     requestId: string;
+    note?: string;
   };
 }
 
