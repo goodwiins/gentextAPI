@@ -17,6 +17,8 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
   const [isMfaEnabled, setIsMfaEnabled] = useState(false);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [showRecoveryCodes, setShowRecoveryCodes] = useState(false);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [hasExistingCodes, setHasExistingCodes] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mfaFactors, setMfaFactors] = useState<any>(null);
 
@@ -114,8 +116,8 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
 
       // Handle case where recovery codes already exist
       if (errorMessage.includes("already generated") || errorMessage.includes("only be read once")) {
-        setError("Recovery codes have already been generated. For security reasons, they can only be viewed once. If you've lost your codes, please contact support.");
-        toast.error("Recovery codes already generated");
+        setHasExistingCodes(true);
+        setError(null); // Clear generic error, we'll show the regenerate UI instead
       } else if (errorMessage.includes("session is prohibited") || errorMessage.includes("session is active")) {
         setError("Recovery codes are already being generated. Please refresh the page and try again.");
         toast.error("Please refresh the page and try again");
@@ -123,6 +125,32 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
         setError(errorMessage);
         toast.error(errorMessage);
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async () => {
+    // Verify session first
+    if (!(await verifySession())) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const codes = await appwriteAuth.updateMfaRecoveryCodes();
+      setRecoveryCodes(codes.recoveryCodes);
+      setShowRecoveryCodes(true);
+      setShowRegenerateConfirm(false);
+      setHasExistingCodes(false);
+      toast.success("New recovery codes generated! Your old codes are now invalid.");
+    } catch (err: any) {
+      console.error("Regenerate recovery codes error:", err);
+      const errorMessage = err.message || "Failed to regenerate recovery codes";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -247,7 +275,64 @@ export default function MfaSettings({ userId }: MfaSettingsProps) {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {!showRecoveryCodes ? (
+            {/* Show regenerate confirmation */}
+            {showRegenerateConfirm ? (
+              <div className="space-y-4">
+                <Alert className="border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950">
+                  <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                  <AlertDescription className="text-sm text-orange-800 dark:text-orange-200">
+                    <strong>Warning:</strong> Generating new recovery codes will invalidate all your previous codes. Make sure you have saved your current codes or are prepared to update them.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRegenerateConfirm(false)}
+                    disabled={isLoading}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleRegenerateRecoveryCodes}
+                    disabled={isLoading}
+                    className="flex-1"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Regenerating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Regenerate Now
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : hasExistingCodes ? (
+              <div className="space-y-4">
+                <Alert className="border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950">
+                  <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+                    You have already generated recovery codes. For security, they can only be viewed once at creation time. If you&apos;ve lost them, you can regenerate new ones.
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRegenerateConfirm(true)}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Regenerate Recovery Codes
+                </Button>
+              </div>
+            ) : !showRecoveryCodes ? (
               <Button
                 onClick={handleGenerateRecoveryCodes}
                 disabled={isLoading}

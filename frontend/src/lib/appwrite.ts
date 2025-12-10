@@ -443,6 +443,18 @@ export const appwriteAuth = {
         }
     },
 
+    // Regenerate MFA recovery codes (invalidates old codes)
+    updateMfaRecoveryCodes: async () => {
+        try {
+            const response = await account.updateMfaRecoveryCodes();
+            console.log('MFA recovery codes regenerated');
+            return response;
+        } catch (error) {
+            console.error('Appwrite service :: updateMfaRecoveryCodes :: error', error);
+            throw error;
+        }
+    },
+
     // Delete MFA authenticator (disable TOTP or phone MFA)
     deleteMfaAuthenticator: async (type: 'totp' | 'phone') => {
         try {
