@@ -61,7 +61,7 @@ export function useUserStats(options: UseUserStatsOptions = {}): UseUserStatsRet
 
         // Log if we're using mock data (for debugging)
         if (isMockData) {
-          console.info('Using mock user statistics data:', response.meta.note);
+          console.info('Using mock user statistics data:', response.meta?.note);
         }
       } else {
         const errorMessage = !response.success ? response.error?.message || 'Failed to fetch user statistics' : 'Unknown error occurred';
