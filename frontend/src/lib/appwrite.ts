@@ -384,6 +384,18 @@ export const appwriteAuth = {
         }
     },
 
+    // Update/verify MFA authenticator (confirm TOTP setup with verification code)
+    updateMfaAuthenticator: async (type: string, otp: string) => {
+        try {
+            const response = await account.updateMfaAuthenticator(type as any, otp);
+            console.log(`MFA authenticator verified: ${type}`);
+            return response;
+        } catch (error) {
+            console.error('Appwrite service :: updateMfaAuthenticator :: error', error);
+            throw error;
+        }
+    },
+
     // Create MFA challenge (sends SMS)
     createMfaChallenge: async (factor: string) => {
         try {

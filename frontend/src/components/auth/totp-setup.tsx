@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckCircle2, Loader2, Smartphone, Copy, QrCode } from "lucide-react";
 import { appwriteAuth, account } from "@/lib/appwrite";
 import { toast } from "react-hot-toast";
+import { QRCodeSVG } from "qrcode.react";
 
 interface TotpSetupProps {
   userId?: string;
@@ -165,13 +166,21 @@ export default function TotpSetup({ userId, onSuccess, onError }: TotpSetupProps
                 Scan this QR code with your authenticator app, or enter the secret manually:
               </p>
               
-              {/* QR Code placeholder - in production you'd generate a real QR code */}
-              <div className="w-48 h-48 mx-auto bg-background border-2 border-dashed border-border rounded-lg flex items-center justify-center mb-4">
-                <div className="text-center">
-                  <QrCode className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-xs text-muted-foreground">QR Code</p>
-                  <p className="text-xs text-muted-foreground">(Open TOTP URI in app)</p>
-                </div>
+              {/* QR Code for authenticator app */}
+              <div className="w-48 h-48 mx-auto bg-white rounded-lg flex items-center justify-center mb-4 p-2">
+                {totpUri ? (
+                  <QRCodeSVG
+                    value={totpUri}
+                    size={176}
+                    level="M"
+                    includeMargin={false}
+                  />
+                ) : (
+                  <div className="text-center">
+                    <QrCode className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Loading...</p>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 bg-background border rounded-lg p-3">

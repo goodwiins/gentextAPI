@@ -892,18 +892,26 @@ export default function Setting() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                      {/* Password input for phone update */}
+                      <div className="grid gap-3">
+                        <Label htmlFor="securityPassword">Account Password</Label>
+                        <Input
+                          id="securityPassword"
+                          type="password"
+                          placeholder="Enter your password"
+                          value={securityPassword}
+                          onChange={(e) => setSecurityPassword(e.target.value)}
+                        />
+                        <p className="text-sm text-muted-foreground">
+                          Your password is required to update your phone number
+                        </p>
+                      </div>
+                      
                       <PhoneSetup
                         password={securityPassword}
                         onSuccess={handlePhoneSetupSuccess}
                         onError={handlePhoneSetupError}
                       />
-                      {!securityPassword && (
-                        <div className="rounded-lg border bg-muted/50 p-4">
-                          <p className="text-sm text-muted-foreground">
-                            <strong>Tip:</strong> Enter your account password above to update your phone number.
-                          </p>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
 
