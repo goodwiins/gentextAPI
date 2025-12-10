@@ -208,6 +208,7 @@ export default function Setting() {
     if (activeSection === 'security' && authState.user && !sessions) {
       loadSessions()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, authState.user])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {

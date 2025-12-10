@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import type { TestimonialCardProps } from '@/types/analytics';
@@ -86,11 +87,12 @@ export function TestimonialCard({
         {/* Avatar */}
         <div className="flex-shrink-0">
           {avatar ? (
-            <img 
+            <Image 
               src={avatar} 
               alt={`${name}'s profile picture`}
+              width={48}
+              height={48}
               className="w-12 h-12 rounded-full object-cover"
-              loading="lazy"
               onError={(e) => {
                 // Fallback to initials on image load error
                 const target = e.target as HTMLImageElement;

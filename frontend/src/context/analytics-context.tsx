@@ -120,7 +120,26 @@ export function AnalyticsProvider({ children, enabled = true }: AnalyticsProvide
       };
 
       // Send session summary to analytics
-      trackSessionEnd(endedSession);
+      const sessionSummary = {
+        sessionId: endedSession.sessionId,
+        duration: endedSession.lastActivity - endedSession.startTime,
+        pageViews: endedSession.pageViews,
+        events: endedSession.events,
+        userId: endedSession.userId,
+        startTime: new Date(endedSession.startTime).toISOString(),
+        endTime: new Date(endedSession.lastActivity).toISOString()
+      };
+
+      // Track session end as an engagement event
+      analyticsService.trackEngagement(
+        SectionName.HERO,
+        EngagementType.VIEW,
+        sessionSummary.duration,
+        0,
+        sessionSummary.events
+      );
+
+      console.log('[Analytics] Session summary:', sessionSummary);
 
       // Flush any remaining analytics data
       analyticsService.flush();

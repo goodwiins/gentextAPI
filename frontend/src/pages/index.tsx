@@ -59,7 +59,7 @@ const Home: React.FC = () => {
       toast.error('Authentication failed. Please try again.');
       router.replace('/login');
     }
-  }, []);
+  }, [refreshAuth, router]);
 
   const features = [
     {
